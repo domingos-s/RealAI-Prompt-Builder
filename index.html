@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealPrompt • RealAI Prompt Builder v1.4</title>
+    <title>RealPrompt • RealAI Prompt Builder v1.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -28,7 +28,7 @@
                 <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
                 <div>
                     <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
-                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.4</div>
+                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.5</div>
                 </div>
             </div>
             <div class="p-6">
@@ -325,7 +325,11 @@
                             const summary = await parseExcelOrCsv(file, field.id);
                             formData[`${field.id}_summary`] = summary;
                             if (summary.type === "t12_expense_summary") {
-                                document.getElementById(`file-status-${field.id}`).innerHTML = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
+                                let statusText = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
+                                if (summary.expenses) {
+                                    statusText += ` • ${Object.keys(summary.expenses).length} categories extracted`;
+                                }
+                                document.getElementById(`file-status-${field.id}`).innerHTML = statusText;
                             } else {
                                 document.getElementById(`file-status-${field.id}`).innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
                             }
@@ -356,25 +360,39 @@
                         workbook = XLSX.read(e.target.result, {type: 'array'});
                     }
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet);
+                    const json = XLSX.utils.sheet_to_json(sheet, {header: 1});  // Use header:1 for raw rows
 
                     const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
 
                     if (isT12) {
+                        let expenses = {};
+                        let rows = json.length;
+                        json.forEach(row => {
+                            if (row.length >= 2 && typeof row[0] === 'string' && !isNaN(parseFloat(row[1]))) {
+                                const category = row[0].trim().toLowerCase();
+                                const amount = parseFloat(row[1]);
+                                if (category && !isNaN(amount)) {
+                                    expenses[category] = amount;
+                                }
+                            }
+                        });
                         resolve({
                             type: "t12_expense_summary",
-                            rows: json.length,
+                            rows: rows,
                             note: "Expense categories / financial lines detected (typical T-12 format)",
-                            rawRows: json.length
+                            expenses: expenses,
+                            rawRows: rows
                         });
                     } else {
                         // original rent-roll logic
-                        let units = json.length;
+                        let units = json.length - 1; // subtract header
                         let totalRent = 0, count = 0;
-                        json.forEach(row => {
-                            const rent = parseFloat(row.Rent || row['Current Rent'] || row['Monthly Rent'] || row['Rent Amount'] || 0);
+                        for (let i = 1; i < json.length; i++) {
+                            const row = json[i];
+                            const rentIndex = row.findIndex(cell => typeof cell === 'string' && cell.toLowerCase().includes('rent'));
+                            const rent = rentIndex >= 0 ? parseFloat(row[rentIndex + 1] || row[rentIndex] || 0) : 0;
                             if (rent > 0) { totalRent += rent; count++; }
-                        });
+                        }
                         resolve({
                             type: "rent_roll_summary",
                             units: units,
@@ -398,7 +416,7 @@
             if (!currentTask) return;
             
             const yamlObj = {
-                version: "1.4",
+                version: "1.5",
                 generated_at: new Date().toISOString(),
                 task: currentTask.id,
                 realai_guidance: getPersonaGuidance(),
@@ -428,7 +446,7 @@
                     "Risks & Mitigants",
                     "Actionable Next Steps"
                 ],
-                additional_context: "Prompt generated via RealPrompt Builder v1.4. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
+                additional_context: "Prompt generated via RealPrompt Builder v1.5. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
             };
 
             try {
@@ -490,7 +508,7 @@
         renderTasks(tasks);
         document.getElementById('yaml-preview').textContent = '# Select a task to generate your institutional-grade RealAI prompt';
 
-        console.log('%c✅ RealPrompt v1.4 – Smart T-12 vs Rent Roll detection • Better summaries • Ready', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.5 – Enhanced T-12 expense extraction • Category & amount parsing • Ready', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
