@@ -27,24 +27,28 @@
         .ra-muted { color: var(--ra-muted); }
         .ra-accent { color: var(--ra-accent); }
         .ra-input {
-            background: color-mix(in srgb, var(--ra-surface) 92%, black);
+            background: color-mix(in srgb, var(--ra-surface) 86%, black);
             border: 1px solid var(--ra-border);
             border-radius: 999px;
             color: var(--ra-text);
             transition: border-color .2s ease, box-shadow .2s ease;
         }
+        textarea.ra-input { border-radius: 22px; }
         .ra-input::placeholder { color: color-mix(in srgb, var(--ra-muted) 82%, transparent); }
         .ra-input:focus-visible {
             outline: none;
             border-color: var(--ra-accent);
             box-shadow: 0 0 0 3px color-mix(in srgb, var(--ra-focus-brand) 38%, transparent);
         }
-        .ra-input.file-input { border-radius: 22px; }
+        .ra-input.file-input {
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--ra-surface) 82%, black);
+        }
         .ra-input.file-input::file-selector-button {
             border-radius: 999px;
             border: 0;
-            background: color-mix(in srgb, var(--ra-accent) 18%, transparent);
-            color: var(--ra-accent);
+            background: color-mix(in srgb, var(--ra-surface) 74%, black);
+            color: var(--ra-text);
             padding: 0.45rem 0.95rem;
             margin-right: 0.75rem;
         }
@@ -83,30 +87,40 @@
             transition: transform .18s ease, filter .18s ease;
         }
         .ra-primary-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
-        .ra-link-btn {
-            color: var(--ra-muted);
+        .ra-tertiary-btn {
+            background: color-mix(in srgb, var(--ra-surface) 88%, black);
+            border: 1px solid var(--ra-border);
+            color: var(--ra-text);
             border-radius: 999px;
-            transition: color .18s ease, background-color .18s ease;
+            transition: color .18s ease, background-color .18s ease, border-color .18s ease;
         }
-        .ra-link-btn:hover { color: var(--ra-text); background: color-mix(in srgb, var(--ra-accent) 12%, transparent); }
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
+        .ra-tertiary-btn:hover {
+            color: var(--ra-text);
+            background: color-mix(in srgb, var(--ra-surface) 70%, black);
+            border-color: color-mix(in srgb, var(--ra-muted) 35%, var(--ra-border));
         }
         .ra-yaml-header {
             background: linear-gradient(90deg, color-mix(in srgb, var(--ra-accent) 10%, var(--ra-bg)), var(--ra-bg));
         }
         .ra-badge {
             border-radius: 999px;
-            background: color-mix(in srgb, var(--ra-accent) 18%, transparent);
-            color: var(--ra-accent);
+            background: color-mix(in srgb, var(--ra-surface) 72%, black);
+            border: 1px solid var(--ra-border);
+            color: var(--ra-muted);
+        }
+        .ra-status {
+            border-radius: 999px;
+            border: 1px solid var(--ra-border);
+            background: color-mix(in srgb, var(--ra-surface) 82%, black);
+            color: var(--ra-muted);
+        }
+        .ra-status.success {
+            border-color: color-mix(in srgb, var(--ra-accent) 26%, var(--ra-border));
+            color: color-mix(in srgb, var(--ra-text) 92%, var(--ra-accent));
+        }
+        .ra-status.error {
+            border-color: color-mix(in srgb, #fb7185 38%, var(--ra-border));
+            color: #fecdd3;
         }
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -140,7 +154,7 @@
             <div class="h-16 ra-surface border-b px-6 flex items-center justify-between flex-shrink-0">
                 <div id="task-title" class="font-semibold text-lg">Select a task from the left</div>
                 <div class="flex items-center gap-4">
-                    <button onclick="resetForm()" class="ra-link-btn flex items-center gap-2 px-5 py-2 text-sm"><i class="fas fa-rotate"></i> Clear</button>
+                    <button onclick="resetForm()" class="ra-tertiary-btn flex items-center gap-2 px-5 py-2 text-sm"><i class="fas fa-rotate"></i> Clear</button>
                     <button onclick="copyYaml()" class="ra-primary-btn px-6 py-2 font-medium flex items-center gap-2"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
                 </div>
             </div>
@@ -153,7 +167,7 @@
         <div class="w-full lg:w-5/12 ra-surface border-t lg:border-l flex flex-col min-h-0">
             <div class="px-6 py-5 border-b ra-surface flex items-center justify-between ra-yaml-header flex-shrink-0">
                 <div class="flex items-center gap-3 ra-accent"><i class="fas fa-file-code text-xl"></i><span class="font-medium tracking-tight">RealAI Prompt (YAML)</span></div>
-                <button onclick="downloadYaml()" class="ra-link-btn ra-accent flex items-center gap-2 text-sm px-4 py-1.5"><i class="fas fa-download"></i> Download .yaml</button>
+                <button onclick="downloadYaml()" class="ra-tertiary-btn flex items-center gap-2 text-sm px-4 py-1.5"><i class="fas fa-download"></i> Download .yaml</button>
             </div>
             <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-[13px] leading-relaxed font-mono whitespace-pre-wrap border-t custom-scroll" style="color: color-mix(in srgb, var(--ra-accent) 28%, var(--ra-text)); background: var(--ra-bg); border-color: var(--ra-border);"></pre>
         </div>
@@ -398,10 +412,10 @@
                     html += `
                         <input id="field-${field.id}" type="file" accept="${field.accept}" 
                                class="w-full ra-input file-input px-6 py-4 text-sm ra-muted">
-                        <div id="file-status-${field.id}" class="text-xs ra-accent mt-1.5" aria-live="polite"></div>
+                        <div id="file-status-${field.id}" class="ra-status text-xs mt-2 px-4 py-2 hidden"></div>
                     `;
                 } else if (field.type === "textarea") {
-                    html += `<textarea id="field-${field.id}" rows="3" class="w-full ra-input resize-y min-h-[100px] px-6 py-4" style="border-radius: 22px;" placeholder="${field.placeholder || ''}"></textarea>`;
+                    html += `<textarea id="field-${field.id}" rows="3" class="w-full ra-input resize-y min-h-[100px] px-6 py-4" placeholder="${field.placeholder || ''}"></textarea>`;
                 } else {
                     html += `<input id="field-${field.id}" type="${field.type}" class="w-full ra-input px-6 py-4" placeholder="${field.placeholder || ''}">`;
                 }
@@ -418,7 +432,8 @@
                         const file = e.target.files[0];
                         if (!file) return;
                         const statusEl = document.getElementById(`file-status-${field.id}`);
-                        statusEl.innerHTML = `✓ ${file.name} selected — parsing...`;
+                        statusEl.className = 'ra-status text-xs mt-2 px-4 py-2';
+                        statusEl.textContent = `✓ ${file.name} selected — parsing...`;
                         formData[field.id] = file.name;
 
                         try {
@@ -432,17 +447,21 @@
                                         const totalExpenses = Object.values(summary.expenses).reduce((a, b) => a + b, 0);
                                         statusText += ` • ${numCats} categories • Total ~$${Math.round(totalExpenses / 1000)}K`;
                                     }
-                                    statusEl.innerHTML = statusText;
+                                    statusEl.textContent = statusText;
                                 } else {
-                                    statusEl.innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                                    statusEl.textContent = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
                                 }
                             } else {
-                                statusEl.innerHTML = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
+                                statusEl.textContent = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
                             }
+                            statusEl.classList.add('success');
+                            statusEl.classList.remove('error');
                             updateYaml();
                         } catch (error) {
                             console.error('Parsing error:', error);
-                            statusEl.innerHTML = `❌ Parsing failed: ${error.message} — Try again or check file format`;
+                            statusEl.textContent = `❌ Parsing failed: ${error.message} — Try again or check file format`;
+                            statusEl.classList.add('error');
+                            statusEl.classList.remove('success');
                         }
                     });
                 } else {
