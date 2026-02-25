@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealPrompt • RealAI Prompt Builder v1.5</title>
+    <title>RealPrompt • RealAI Prompt Builder v1.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -28,7 +28,7 @@
                 <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
                 <div>
                     <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
-                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.5</div>
+                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.6</div>
                 </div>
             </div>
             <div class="p-6">
@@ -327,7 +327,9 @@
                             if (summary.type === "t12_expense_summary") {
                                 let statusText = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
                                 if (summary.expenses) {
-                                    statusText += ` • ${Object.keys(summary.expenses).length} categories extracted`;
+                                    const numCats = Object.keys(summary.expenses).length;
+                                    const totalExpenses = Object.values(summary.expenses).reduce((a, b) => a + b, 0);
+                                    statusText += ` • ${numCats} categories • Total ~$${Math.round(totalExpenses / 1000)}K`;
                                 }
                                 document.getElementById(`file-status-${field.id}`).innerHTML = statusText;
                             } else {
@@ -360,22 +362,33 @@
                         workbook = XLSX.read(e.target.result, {type: 'array'});
                     }
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, {header: 1});  // Use header:1 for raw rows
+                    const json = XLSX.utils.sheet_to_json(sheet, {header: 1, blankrows: false, defval: null}); // raw array, no blanks
 
                     const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
 
                     if (isT12) {
                         let expenses = {};
                         let rows = json.length;
-                        json.forEach(row => {
-                            if (row.length >= 2 && typeof row[0] === 'string' && !isNaN(parseFloat(row[1]))) {
-                                const category = row[0].trim().toLowerCase();
-                                const amount = parseFloat(row[1]);
-                                if (category && !isNaN(amount)) {
-                                    expenses[category] = amount;
-                                }
+                        let header = json[0] || [];
+                        let totalIndex = header.findIndex(col => col && col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual'));
+                        let hasTotal = totalIndex >= 0;
+
+                        for (let i = 1; i < json.length; i++) {
+                            let row = json[i];
+                            let category = row[0] ? row[0].toString().trim().toLowerCase() : null;
+                            if (!category || category === '' || category.includes('total')) continue; // skip empty or totals
+
+                            let amount;
+                            if (hasTotal) {
+                                amount = parseFloat(row[totalIndex]) || 0;
+                            } else {
+                                // Sum all numeric columns after category (assume 1-12 months)
+                                amount = row.slice(1).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
                             }
-                        });
+                            if (!isNaN(amount) && amount !== 0) {
+                                expenses[category] = amount;
+                            }
+                        }
                         resolve({
                             type: "t12_expense_summary",
                             rows: rows,
@@ -416,7 +429,7 @@
             if (!currentTask) return;
             
             const yamlObj = {
-                version: "1.5",
+                version: "1.6",
                 generated_at: new Date().toISOString(),
                 task: currentTask.id,
                 realai_guidance: getPersonaGuidance(),
@@ -446,7 +459,7 @@
                     "Risks & Mitigants",
                     "Actionable Next Steps"
                 ],
-                additional_context: "Prompt generated via RealPrompt Builder v1.5. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
+                additional_context: "Prompt generated via RealPrompt Builder v1.6. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
             };
 
             try {
@@ -508,7 +521,7 @@
         renderTasks(tasks);
         document.getElementById('yaml-preview').textContent = '# Select a task to generate your institutional-grade RealAI prompt';
 
-        console.log('%c✅ RealPrompt v1.5 – Enhanced T-12 expense extraction • Category & amount parsing • Ready', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.6 – T-12 full year totals extraction • Sums monthly or uses Total column • Ready', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
