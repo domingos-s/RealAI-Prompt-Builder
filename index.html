@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealPrompt • RealAI Prompt Builder v1.6</title>
+    <title>RealPrompt • RealAI Prompt Builder v1.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -28,7 +28,7 @@
                 <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
                 <div>
                     <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
-                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.6</div>
+                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.7</div>
                 </div>
             </div>
             <div class="p-6">
@@ -318,27 +318,33 @@
                     el.addEventListener('change', async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        document.getElementById(`file-status-${field.id}`).innerHTML = `✓ ${file.name} selected — parsing...`;
+                        const statusEl = document.getElementById(`file-status-${field.id}`);
+                        statusEl.innerHTML = `✓ ${file.name} selected — parsing...`;
                         formData[field.id] = file.name;
 
-                        if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
-                            const summary = await parseExcelOrCsv(file, field.id);
-                            formData[`${field.id}_summary`] = summary;
-                            if (summary.type === "t12_expense_summary") {
-                                let statusText = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
-                                if (summary.expenses) {
-                                    const numCats = Object.keys(summary.expenses).length;
-                                    const totalExpenses = Object.values(summary.expenses).reduce((a, b) => a + b, 0);
-                                    statusText += ` • ${numCats} categories • Total ~$${Math.round(totalExpenses / 1000)}K`;
+                        try {
+                            if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
+                                const summary = await parseExcelOrCsv(file, field.id);
+                                formData[`${field.id}_summary`] = summary;
+                                if (summary.type === "t12_expense_summary") {
+                                    let statusText = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
+                                    if (summary.expenses) {
+                                        const numCats = Object.keys(summary.expenses).length;
+                                        const totalExpenses = Object.values(summary.expenses).reduce((a, b) => a + b, 0);
+                                        statusText += ` • ${numCats} categories • Total ~$${Math.round(totalExpenses / 1000)}K`;
+                                    }
+                                    statusEl.innerHTML = statusText;
+                                } else {
+                                    statusEl.innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
                                 }
-                                document.getElementById(`file-status-${field.id}`).innerHTML = statusText;
                             } else {
-                                document.getElementById(`file-status-${field.id}`).innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                                statusEl.innerHTML = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
                             }
-                        } else {
-                            document.getElementById(`file-status-${field.id}`).innerHTML = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
+                            updateYaml();
+                        } catch (error) {
+                            console.error('Parsing error:', error);
+                            statusEl.innerHTML = `❌ Parsing failed: ${error.message} — Try again or check file format`;
                         }
-                        updateYaml();
                     });
                 } else {
                     el.addEventListener('input', () => {
@@ -352,68 +358,73 @@
         }
 
         async function parseExcelOrCsv(file, fieldId = '') {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    let workbook;
-                    if (file.name.endsWith('.csv')) {
-                        workbook = XLSX.read(e.target.result, {type: 'string'});
-                    } else {
-                        workbook = XLSX.read(e.target.result, {type: 'array'});
-                    }
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, {header: 1, blankrows: false, defval: null}); // raw array, no blanks
-
-                    const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
-
-                    if (isT12) {
-                        let expenses = {};
-                        let rows = json.length;
-                        let header = json[0] || [];
-                        let totalIndex = header.findIndex(col => col && col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual'));
-                        let hasTotal = totalIndex >= 0;
-
-                        for (let i = 1; i < json.length; i++) {
-                            let row = json[i];
-                            let category = row[0] ? row[0].toString().trim().toLowerCase() : null;
-                            if (!category || category === '' || category.includes('total')) continue; // skip empty or totals
-
-                            let amount;
-                            if (hasTotal) {
-                                amount = parseFloat(row[totalIndex]) || 0;
-                            } else {
-                                // Sum all numeric columns after category (assume 1-12 months)
-                                amount = row.slice(1).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-                            }
-                            if (!isNaN(amount) && amount !== 0) {
-                                expenses[category] = amount;
-                            }
+                    try {
+                        let workbook;
+                        if (file.name.endsWith('.csv')) {
+                            workbook = XLSX.read(e.target.result, {type: 'string'});
+                        } else {
+                            workbook = XLSX.read(e.target.result, {type: 'array'});
                         }
-                        resolve({
-                            type: "t12_expense_summary",
-                            rows: rows,
-                            note: "Expense categories / financial lines detected (typical T-12 format)",
-                            expenses: expenses,
-                            rawRows: rows
-                        });
-                    } else {
-                        // original rent-roll logic
-                        let units = json.length - 1; // subtract header
-                        let totalRent = 0, count = 0;
-                        for (let i = 1; i < json.length; i++) {
-                            const row = json[i];
-                            const rentIndex = row.findIndex(cell => typeof cell === 'string' && cell.toLowerCase().includes('rent'));
-                            const rent = rentIndex >= 0 ? parseFloat(row[rentIndex + 1] || row[rentIndex] || 0) : 0;
-                            if (rent > 0) { totalRent += rent; count++; }
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(sheet, {header: 1, blankrows: false, defval: null}); // raw array, no blanks
+
+                        const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
+
+                        if (isT12) {
+                            let expenses = {};
+                            let rows = json.length;
+                            let header = json[0] || [];
+                            let totalIndex = header.findIndex(col => col && col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual'));
+                            let hasTotal = totalIndex >= 0;
+
+                            for (let i = 1; i < json.length; i++) {
+                                let row = json[i];
+                                let category = row[0] ? row[0].toString().trim().toLowerCase() : null;
+                                if (!category || category === '' || category.includes('total')) continue; // skip empty or totals
+
+                                let amount;
+                                if (hasTotal) {
+                                    amount = parseFloat(row[totalIndex]) || 0;
+                                } else {
+                                    // Sum all numeric columns after category (assume 1-12 months)
+                                    amount = row.slice(1).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+                                }
+                                if (!isNaN(amount) && amount !== 0) {
+                                    expenses[category] = amount;
+                                }
+                            }
+                            resolve({
+                                type: "t12_expense_summary",
+                                rows: rows,
+                                note: "Expense categories / financial lines detected (typical T-12 format)",
+                                expenses: expenses,
+                                rawRows: rows
+                            });
+                        } else {
+                            // original rent-roll logic
+                            let units = json.length - 1; // subtract header
+                            let totalRent = 0, count = 0;
+                            for (let i = 1; i < json.length; i++) {
+                                const row = json[i];
+                                const rentIndex = row.findIndex(cell => typeof cell === 'string' && cell.toLowerCase().includes('rent'));
+                                const rent = rentIndex >= 0 ? parseFloat(row[rentIndex + 1] || row[rentIndex] || 0) : 0;
+                                if (rent > 0) { totalRent += rent; count++; }
+                            }
+                            resolve({
+                                type: "rent_roll_summary",
+                                units: units,
+                                avgRent: count ? Math.round(totalRent / count) : null,
+                                rawRows: json.length
+                            });
                         }
-                        resolve({
-                            type: "rent_roll_summary",
-                            units: units,
-                            avgRent: count ? Math.round(totalRent / count) : null,
-                            rawRows: json.length
-                        });
+                    } catch (error) {
+                        reject(error);
                     }
                 };
+                reader.onerror = (error) => reject(error);
                 if (file.name.endsWith('.csv')) reader.readAsText(file);
                 else reader.readAsArrayBuffer(file);
             });
@@ -429,7 +440,7 @@
             if (!currentTask) return;
             
             const yamlObj = {
-                version: "1.6",
+                version: "1.7",
                 generated_at: new Date().toISOString(),
                 task: currentTask.id,
                 realai_guidance: getPersonaGuidance(),
@@ -459,7 +470,7 @@
                     "Risks & Mitigants",
                     "Actionable Next Steps"
                 ],
-                additional_context: "Prompt generated via RealPrompt Builder v1.6. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
+                additional_context: "Prompt generated via RealPrompt Builder v1.7. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
             };
 
             try {
@@ -521,7 +532,7 @@
         renderTasks(tasks);
         document.getElementById('yaml-preview').textContent = '# Select a task to generate your institutional-grade RealAI prompt';
 
-        console.log('%c✅ RealPrompt v1.6 – T-12 full year totals extraction • Sums monthly or uses Total column • Ready', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.7 – Added error handling for parsing • Status updates on fail • Ready', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
