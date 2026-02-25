@@ -357,6 +357,61 @@
             updateYaml();
         }
 
+        function parseCurrencyNumber(value) {
+            if (typeof value === 'number') return value;
+            if (typeof value !== 'string') return NaN;
+            const cleaned = value
+                .trim()
+                .replace(/[$,]/g, '')
+                .replace(/\(([^)]+)\)/, '-$1');
+            return parseFloat(cleaned);
+        }
+
+        function findBestHeaderRow(rows, scanLimit = 6) {
+            const monthTokens = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            let bestIndex = 0;
+            let bestScore = -1;
+
+            for (let i = 0; i < Math.min(rows.length, scanLimit); i++) {
+                const row = rows[i] || [];
+                const normalized = row.map(cell => (typeof cell === 'string' ? cell.toLowerCase() : ''));
+                const monthHits = normalized.filter(cell => monthTokens.some(m => cell.includes(m))).length;
+                const totalHits = normalized.filter(cell => cell.includes('total') || cell.includes('ytd') || cell.includes('annual')).length;
+                const score = monthHits * 2 + totalHits;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        function inferT12Amount(row, totalIndex = -1) {
+            if (totalIndex >= 0) {
+                const explicitTotal = parseCurrencyNumber(row[totalIndex]);
+                if (!isNaN(explicitTotal)) return explicitTotal;
+            }
+
+            const numericValues = row
+                .slice(1)
+                .map(parseCurrencyNumber)
+                .filter(value => !isNaN(value));
+
+            if (numericValues.length === 0) return 0;
+
+            const maybeTotal = numericValues[numericValues.length - 1];
+            const sumWithoutLast = numericValues.slice(0, -1).reduce((sum, value) => sum + value, 0);
+            const relativeDiff = sumWithoutLast !== 0 ? Math.abs(maybeTotal - sumWithoutLast) / Math.abs(sumWithoutLast) : Infinity;
+
+            // Common T-12 fallback: Jan-Dec plus an unlabeled annual total value.
+            if (numericValues.length >= 13 && relativeDiff < 0.01) {
+                return maybeTotal;
+            }
+
+            return numericValues.reduce((sum, value) => sum + value, 0);
+        }
+
         async function parseExcelOrCsv(file, fieldId = '') {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -376,22 +431,17 @@
                         if (isT12) {
                             let expenses = {};
                             let rows = json.length;
-                            let header = json[0] || [];
+                            const headerRowIndex = findBestHeaderRow(json);
+                            let header = json[headerRowIndex] || [];
                             let totalIndex = header.findIndex(col => col && typeof col === 'string' && (col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual')));
                             let hasTotal = totalIndex >= 0;
 
-                            for (let i = 1; i < json.length; i++) {
+                            for (let i = headerRowIndex + 1; i < json.length; i++) {
                                 let row = json[i];
                                 let category = row[0] && typeof row[0] === 'string' ? row[0].trim().toLowerCase() : null;
                                 if (!category || category === '' || category.includes('total')) continue; // skip empty or totals
 
-                                let amount;
-                                if (hasTotal) {
-                                    amount = parseFloat(row[totalIndex]) || 0;
-                                } else {
-                                    // Sum all numeric columns after category (assume 1-12 months)
-                                    amount = row.slice(1).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-                                }
+                                let amount = inferT12Amount(row, hasTotal ? totalIndex : -1);
                                 if (!isNaN(amount) && amount !== 0) {
                                     expenses[category] = amount;
                                 }
