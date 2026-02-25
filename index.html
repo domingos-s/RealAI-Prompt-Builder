@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RealAI Prompt Builder • Multifamily Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .heading { font-family: 'Space Grotesk', system-ui, sans-serif; }
+        pre { font-family: ui-monospace, monospace; }
+        .task-card { transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .task-card:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -5px rgb(16 185 129 / 0.15); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200 min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar: Task Selector -->
+        <div class="w-96 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+            <div class="p-8 border-b border-zinc-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading">R</div>
+                    <div>
+                        <div class="heading text-3xl font-semibold tracking-tighter">RealPrompt</div>
+                        <div class="text-emerald-400 text-xs font-medium tracking-widest">FOR REALAI • FUNDRISE</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <input id="search" type="text" placeholder="Search tasks..." 
+                       class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            
+            <div id="tasks" class="flex-1 overflow-auto px-6 space-y-3 pb-8">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Main Area -->
+        <div class="flex-1 flex flex-col">
+            <div id="header" class="h-16 border-b border-zinc-800 bg-zinc-900 px-8 flex items-center justify-between">
+                <div id="current-task" class="font-medium text-lg">Select a task to start</div>
+                <button onclick="resetAll()" 
+                        class="px-5 py-2 text-sm text-zinc-400 hover:text-white flex items-center gap-2">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="flex-1 p-8 overflow-auto" id="main-content">
+                <div id="form-container" class="max-w-2xl mx-auto">
+                    <!-- Dynamic form injected here -->
+                </div>
+            </div>
+            
+            <div class="border-t border-zinc-800 bg-zinc-900 p-6 flex justify-end">
+                <button onclick="copyYaml()" 
+                        class="bg-emerald-600 hover:bg-emerald-700 px-8 py-3 rounded-2xl font-medium flex items-center gap-3">
+                    <i class="fas fa-copy"></i>
+                    Copy YAML Prompt
+                </button>
+            </div>
+        </div>
+
+        <!-- YAML Preview -->
+        <div class="w-2/5 bg-zinc-900 border-l border-zinc-800 flex flex-col">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
+                <div class="font-medium flex items-center gap-2">
+                    <i class="fas fa-file-code text-emerald-400"></i>
+                    Generated RealAI Prompt (YAML)
+                </div>
+                <button onclick="downloadYaml()" 
+                        class="text-emerald-400 hover:text-emerald-300 text-sm flex items-center gap-2">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+            <pre id="yaml" class="flex-1 p-8 overflow-auto text-emerald-300 text-sm leading-relaxed bg-black/40 font-mono whitespace-pre-wrap"></pre>
+        </div>
+    </div>
+
+    <script>
+        // === TASK LIBRARY (12 tasks) ===
+        const tasks = [
+            {
+                id: "comprehensive_underwriting",
+                category: "acquisitions",
+                name: "Comprehensive Property Underwriting & Valuation",
+                description: "Full institutional-grade underwriting with DCF, comps, and go/no-go recommendation.",
+                fields: [
+                    {name: "address", label: "Property Address", type: "text", placeholder: "123 Main St, Austin, TX 78701", required: true},
+                    {name: "purchase_price", label: "Offer Price ($)", type: "number", placeholder: "42500000", required: true},
+                    {name: "unit_mix", label: "Unit Mix", type: "textarea", placeholder: "120 x 1BR\n80 x 2BR", required: true},
+                    {name: "year_built", label: "Year Built", type: "number"},
+                    {name: "sqft", label: "Total Rentable SF", type: "number"},
+                    {name: "current_occupancy", label: "Current Occupancy (%)", type: "number", placeholder: "94"},
+                ]
+            },
+            {
+                id: "rent_roll_analysis",
+                category: "acquisitions",
+                name: "Rent Roll + Income Analysis",
+                description: "Deep dive into current income, loss-to-lease, and revenue upside.",
+                fields: [
+                    {name: "address", label: "Property Address", type: "text", required: true},
+                    {name: "rent_roll", label: "Rent Roll (paste or describe)", type: "textarea", placeholder: "Unit 101 - 1BR - $1,650 - leased", required: true},
+                    {name: "market_rent", label: "Market Rent per SF", type: "number"},
+                ]
+            },
+            {
+                id: "expense_benchmarking",
+                category: "acquisitions",
+                name: "Operating Expense Benchmarking & Analysis",
+                description: "Benchmark expenses vs. market and identify savings opportunities.",
+                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+            },
+            {
+                id: "sales_comps",
+                category: "acquisitions",
+                name: "Sales Comps & Pricing Benchmarking",
+                description: "Find and analyze the best sales comps within the submarket.",
+                fields: [{name: "address", label: "Subject Property Address", type: "text", required: true}]
+            },
+            {
+                id: "rental_comps",
+                category: "acquisitions",
+                name: "Rental Comps Analysis",
+                description: "Detailed rental comps table and rent growth forecast.",
+                fields: [{name: "address", label: "Subject Property Address", type: "text", required: true}]
+            },
+            {
+                id: "sensitivity_analysis",
+                category: "acquisitions",
+                name: "Full Sensitivity & Scenario Analysis",
+                description: "Stress-test IRR, equity multiple, and exit cap rates.",
+                fields: [
+                    {name: "address", label: "Property Address", type: "text", required: true},
+                    {name: "base_irr", label: "Target Base IRR (%)", type: "number", placeholder: "14"},
+                ]
+            },
+            {
+                id: "ic_memo",
+                category: "acquisitions",
+                name: "Investment Committee Memo Draft",
+                description: "Generate a complete, ready-to-present IC memo.",
+                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+            },
+            {
+                id: "dd_review",
+                category: "acquisitions",
+                name: "Due Diligence Review & Risk Summary",
+                description: "Summarize DD findings and key risks with mitigants.",
+                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+            },
+            {
+                id: "ground_up_proforma",
+                category: "development",
+                name: "Ground-Up Development Pro Forma & Feasibility",
+                description: "Full development pro forma, yield-on-cost, and entitlements summary.",
+                fields: [
+                    {name: "site_address", label: "Site Address", type: "text", required: true},
+                    {name: "units_planned", label: "Planned Units", type: "number", required: true},
+                    {name: "total_cost", label: "Total Development Cost ($)", type: "number", required: true},
+                ]
+            },
+            {
+                id: "value_add",
+                category: "development",
+                name: "Value-Add / Renovation Underwriting",
+                description: "Scope, budget, and return analysis for renovation projects.",
+                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+            },
+            {
+                id: "site_feasibility",
+                category: "development",
+                name: "Site Acquisition Feasibility & Entitlements",
+                description: "Entitlement risk, zoning, and acquisition feasibility.",
+                fields: [{name: "site_address", label: "Site Address", type: "text", required: true}]
+            },
+            {
+                id: "yield_on_cost",
+                category: "development",
+                name: "Yield-on-Cost & Development Return Analysis",
+                description: "Detailed yield-on-cost, IRR, and return metrics.",
+                fields: [{name: "site_address", label: "Site Address", type: "text", required: true}]
+            }
+        ];
+
+        let currentTask = null;
+        let formData = {};
+
+        function renderTasks(filteredTasks) {
+            const container = document.getElementById('tasks');
+            container.innerHTML = '';
+            filteredTasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = `task-card bg-zinc-800 border border-zinc-700 hover:border-emerald-500 rounded-3xl p-6 cursor-pointer`;
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs uppercase tracking-widest text-emerald-400">${task.category}</div>
+                            <div class="font-semibold mt-1 leading-tight">${task.name}</div>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => loadTask(task);
+                container.appendChild(card);
+            });
+        }
+
+        function loadTask(task) {
+            currentTask = task;
+            formData = {};
+            document.getElementById('current-task').textContent = task.name;
+            
+            const formContainer = document.getElementById('form-container');
+            formContainer.innerHTML = `
+                <div class="text-zinc-400 text-sm mb-8">${task.description}</div>
+                <form id="dynamic-form" class="space-y-8"></form>
+            `;
+
+            const form = document.getElementById('dynamic-form');
+            task.fields.forEach(field => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label class="block text-sm text-zinc-400 mb-2">\( {field.label} \){field.required ? ' *' : ''}</label>
+                    ${field.type === 'textarea' ? 
+                        `<textarea name="\( {field.name}" rows="4" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-emerald-500" placeholder=" \){field.placeholder || ''}"></textarea>` :
+                        `<input type="\( {field.type}" name=" \){field.name}" placeholder="${field.placeholder || ''}" 
+                               class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-emerald-500">`
+                    }
+                `;
+                form.appendChild(div);
+
+                // Auto-save on input
+                const input = div.querySelector('input, textarea');
+                if (input) {
+                    input.addEventListener('input', (e) => {
+                        formData[field.name] = e.target.value;
+                        updateYaml();
+                    });
+                }
+            });
+
+            updateYaml();
+        }
+
+        function updateYaml() {
+            if (!currentTask) return;
+
+            const yamlObj = {
+                version: "1.0",
+                generated_at: new Date().toISOString(),
+                task: currentTask.id,
+                realai_guidance: "You are an institutional-grade multifamily acquisitions/development analyst with 15+ years experience at a $7B+ platform like Fundrise. Use all available data (rents, comps, sales history, demographics, household economics). Be precise, data-driven, and conservative.",
+                property_profile: {
+                    address: formData.address || formData.site_address || "—",
+                    ...formData
+                },
+                analysis_objectives: currentTask.id.includes("underwriting") ? 
+                    ["Full 10-year pro forma with DCF, IRR, equity multiple", "Benchmark vs top 10 rental & sales comps", "Risk assessment and go/no-go recommendation"] : 
+                    ["Detailed analysis per task requirements"],
+                constraints_and_assumptions: {
+                    hold_period_years: 5,
+                    target_irr: "≥14%",
+                    // add more from form if present
+                },
+                required_output_structure: [
+                    "Executive Summary (thesis + recommendation)",
+                    "Property/Market Overview",
+                    "Comps Tables",
+                    "Financial Analysis",
+                    "Key Risks & Mitigants",
+                    "Actionable Recommendations"
+                ],
+                additional_context: "Generated via RealAI Prompt Builder for maximum signal and consistency."
+            };
+
+            try {
+                const yamlStr = jsyaml.dump(yamlObj, {indent: 2});
+                document.getElementById('yaml').textContent = yamlStr;
+            } catch(e) {
+                document.getElementById('yaml').textContent = "# Error generating YAML";
+            }
+        }
+
+        function copyYaml() {
+            const text = document.getElementById('yaml').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btns = document.querySelectorAll('button');
+                const orig = btns[0].innerHTML;
+                btns[0].innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                setTimeout(() => btns[0].innerHTML = orig, 2000);
+            });
+        }
+
+        function downloadYaml() {
+            const text = document.getElementById('yaml').textContent;
+            const blob = new Blob([text], {type: 'text/yaml'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentTask ? currentTask.id : 'realai-prompt'}.yaml`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function resetAll() {
+            currentTask = null;
+            formData = {};
+            document.getElementById('current-task').textContent = 'Select a task to start';
+            document.getElementById('form-container').innerHTML = `<div class="text-center py-32 text-zinc-500">Select a task from the left to begin building your prompt</div>`;
+            document.getElementById('yaml').textContent = '# Select a task to generate prompt';
+        }
+
+        // Search functionality
+        document.getElementById('search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = tasks.filter(t => 
+                t.name.toLowerCase().includes(term) || 
+                t.description.toLowerCase().includes(term)
+            );
+            renderTasks(filtered);
+        });
+
+        // Initial render
+        renderTasks(tasks);
+
+        // Tailwind script already loaded
+        console.log('%c✅ RealAI Prompt Builder v1.0 ready', 'color:#10b981; font-weight:bold');
+    </script>
+</body>
+</html>
