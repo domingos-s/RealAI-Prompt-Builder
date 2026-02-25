@@ -92,6 +92,11 @@
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ra-accent) 72%, transparent); border-radius: 3px; }
+        .ra-input-invalid {
+            border-color: #f87171 !important;
+            box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
+        }
+        .ra-field-error { color: #fca5a5; }
     </style>
 </head>
 <body class="ra-page min-h-screen overflow-hidden">
@@ -380,6 +385,7 @@
                 } else {
                     html += `<input id="field-${field.id}" type="${field.type}" class="w-full ra-input px-6 py-4" placeholder="${field.placeholder || ''}">`;
                 }
+                html += `<div id="field-error-${field.id}" class="ra-field-error text-xs mt-1.5"></div>`;
                 html += `</div>`;
             });
             html += `</div>`;
@@ -401,7 +407,7 @@
                                 const summary = await parseExcelOrCsv(file, field.id);
                                 formData[`${field.id}_summary`] = summary;
                                 if (summary.type === "t12_expense_summary") {
-                                    let statusText = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
+                                    let statusText = `✓ Parsed ${summary.rows} rows • ${summary.detectedColumns} columns detected`;
                                     if (summary.expenses) {
                                         const numCats = Object.keys(summary.expenses).length;
                                         const totalExpenses = Object.values(summary.expenses).reduce((a, b) => a + b, 0);
@@ -409,20 +415,26 @@
                                     }
                                     statusEl.innerHTML = statusText;
                                 } else {
-                                    statusEl.innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                                    const avgRentText = summary.avgRent !== null ? `$${summary.avgRent}` : 'N/A';
+                                    statusEl.innerHTML = `✓ Parsed ${summary.rows} rows • ${summary.detectedColumns} columns detected • ${summary.units} units • avg rent ${avgRentText}`;
                                 }
                             } else {
-                                statusEl.innerHTML = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
+                                statusEl.innerHTML = `✓ ${file.name} selected • parsing skipped (unsupported extension for tabular parse)`;
                             }
+                            clearFieldError(field.id);
+                            validateCurrentTask(false);
                             updateYaml();
                         } catch (error) {
                             console.error('Parsing error:', error);
-                            statusEl.innerHTML = `❌ Parsing failed: ${error.message} — Try again or check file format`;
+                            statusEl.innerHTML = `❌ Parsing failed • reason: ${error.message}`;
+                            validateCurrentTask(false);
                         }
                     });
                 } else {
                     el.addEventListener('input', () => {
                         formData[field.id] = el.value.trim();
+                        clearFieldError(field.id);
+                        validateCurrentTask(false);
                         updateYaml();
                     });
                 }
@@ -497,8 +509,22 @@
                         } else {
                             workbook = XLSX.read(e.target.result, {type: 'array'});
                         }
+                        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                            throw new Error('No worksheet found');
+                        }
                         const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        if (!sheet) {
+                            throw new Error('Unable to read first worksheet');
+                        }
                         const json = XLSX.utils.sheet_to_json(sheet, {header: 1, blankrows: false, defval: null}); // raw array, no blanks
+                        if (!json.length) {
+                            throw new Error('Worksheet is empty (0 rows parsed)');
+                        }
+
+                        const detectedColumns = json.reduce((max, row) => Math.max(max, (row || []).length), 0);
+                        if (detectedColumns === 0) {
+                            throw new Error('No columns detected in worksheet');
+                        }
 
                         const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
 
@@ -523,6 +549,7 @@
                             resolve({
                                 type: "t12_expense_summary",
                                 rows: rows,
+                                detectedColumns: detectedColumns,
                                 note: "Expense categories / financial lines detected (typical T-12 format)",
                                 expenses: expenses,
                                 rawRows: rows
@@ -539,6 +566,8 @@
                             }
                             resolve({
                                 type: "rent_roll_summary",
+                                rows: json.length,
+                                detectedColumns: detectedColumns,
                                 units: units,
                                 avgRent: count ? Math.round(totalRent / count) : null,
                                 rawRows: json.length
@@ -611,6 +640,10 @@
                 alert("Please select a task and fill in some details first");
                 return;
             }
+            if (!validateCurrentTask(true)) {
+                alert('Please complete all required fields before copying YAML.');
+                return;
+            }
             navigator.clipboard.writeText(text).then(() => {
                 const btn = event.currentTarget;
                 const orig = btn.innerHTML;
@@ -622,6 +655,10 @@
         function downloadYaml() {
             const text = document.getElementById('yaml-preview').textContent;
             if (!text || text.includes("# Select")) return;
+            if (!validateCurrentTask(true)) {
+                alert('Please complete all required fields before downloading YAML.');
+                return;
+            }
             const blob = new Blob([text], { type: 'text/yaml' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -640,8 +677,39 @@
                     if (f.type === "file") el.value = '';
                     else el.value = '';
                 }
+                clearFieldError(f.id);
             });
+            validateCurrentTask(false);
             updateYaml();
+        }
+
+        function clearFieldError(fieldId) {
+            const fieldEl = document.getElementById(`field-${fieldId}`);
+            const errorEl = document.getElementById(`field-error-${fieldId}`);
+            if (fieldEl) fieldEl.classList.remove('ra-input-invalid');
+            if (errorEl) errorEl.textContent = '';
+        }
+
+        function validateCurrentTask(showErrors = true) {
+            if (!currentTask) return false;
+
+            const missingRequired = currentTask.fields.filter(field => {
+                if (!field.required) return false;
+                const value = formData[field.id];
+                return value === undefined || value === null || String(value).trim() === '';
+            });
+
+            if (showErrors) {
+                currentTask.fields.forEach(field => clearFieldError(field.id));
+                missingRequired.forEach(field => {
+                    const fieldEl = document.getElementById(`field-${field.id}`);
+                    const errorEl = document.getElementById(`field-error-${field.id}`);
+                    if (fieldEl) fieldEl.classList.add('ra-input-invalid');
+                    if (errorEl) errorEl.textContent = 'This field is required.';
+                });
+            }
+
+            return missingRequired.length === 0;
         }
 
         document.getElementById('search').addEventListener('input', (e) => {
