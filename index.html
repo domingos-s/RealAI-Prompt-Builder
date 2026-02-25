@@ -14,10 +14,11 @@
             --ra-bg: #0b1220;
             --ra-surface: #141e31;
             --ra-text: #e7edf8;
-            --ra-muted: #93a1bc;
+            --ra-muted: #7d8ca8;
             --ra-accent: #f59e0b;
             --ra-border: #27334a;
             --ra-focus: rgba(245, 158, 11, 0.34);
+            --ra-focus-brand: #fbbf24;
         }
         body { font-family: 'Inter', system-ui, sans-serif; }
         .heading { font-family: 'Space Grotesk', sans-serif; }
@@ -33,10 +34,10 @@
             transition: border-color .2s ease, box-shadow .2s ease;
         }
         .ra-input::placeholder { color: color-mix(in srgb, var(--ra-muted) 82%, transparent); }
-        .ra-input:focus {
+        .ra-input:focus-visible {
             outline: none;
             border-color: var(--ra-accent);
-            box-shadow: 0 0 0 3px var(--ra-focus);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--ra-focus-brand) 38%, transparent);
         }
         .ra-input.file-input { border-radius: 22px; }
         .ra-input.file-input::file-selector-button {
@@ -60,6 +61,13 @@
             border-color: color-mix(in srgb, var(--ra-accent) 45%, var(--ra-border));
             box-shadow: 0 12px 24px -16px rgba(4, 8, 16, 0.75);
         }
+        .task-card:focus-visible,
+        .ra-primary-btn:focus-visible,
+        .ra-link-btn:focus-visible {
+            outline: 2px solid var(--ra-focus-brand);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--ra-focus-brand) 34%, transparent);
+        }
         .task-card.active {
             background: color-mix(in srgb, var(--ra-accent) 18%, var(--ra-surface));
             color: var(--ra-text) !important;
@@ -81,6 +89,17 @@
             transition: color .18s ease, background-color .18s ease;
         }
         .ra-link-btn:hover { color: var(--ra-text); background: color-mix(in srgb, var(--ra-accent) 12%, transparent); }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         .ra-yaml-header {
             background: linear-gradient(90deg, color-mix(in srgb, var(--ra-accent) 10%, var(--ra-bg)), var(--ra-bg));
         }
@@ -107,11 +126,12 @@
             </div>
             <div class="p-6">
                 <div class="relative">
+                    <label for="search" class="sr-only">Search tasks</label>
                     <input id="search" type="text" placeholder="Search tasks..." class="w-full ra-input px-5 py-3.5 text-sm">
                     <i class="fas fa-search absolute right-5 top-4 ra-muted"></i>
                 </div>
             </div>
-            <div id="tasks-list" class="flex-1 overflow-auto px-6 space-y-4 pb-8 custom-scroll"></div>
+            <ul id="tasks-list" class="flex-1 overflow-auto px-6 space-y-4 pb-8 custom-scroll" aria-label="Available prompt tasks"></ul>
             <div class="p-6 border-t ra-surface text-xs ra-muted">12 professional tasks • Smart Excel parsing</div>
         </div>
 
@@ -336,8 +356,12 @@
             const container = document.getElementById('tasks-list');
             container.innerHTML = '';
             filtered.forEach(task => {
-                const el = document.createElement('div');
-                el.className = `task-card p-6 cursor-pointer`;
+                const listItem = document.createElement('li');
+                listItem.className = 'list-none';
+
+                const el = document.createElement('button');
+                el.type = 'button';
+                el.className = `task-card p-6 cursor-pointer text-left w-full`;
                 el.dataset.id = task.id;
                 el.innerHTML = `
                     <div class="flex justify-between items-start">
@@ -348,8 +372,9 @@
                         </div>
                     </div>
                 `;
-                el.onclick = () => loadTask(task, el);
-                container.appendChild(el);
+                el.addEventListener('click', () => loadTask(task, el));
+                listItem.appendChild(el);
+                container.appendChild(listItem);
             });
         }
 
@@ -367,13 +392,13 @@
             task.fields.forEach(field => {
                 html += `
                     <div>
-                        <label class="block text-sm font-medium mb-2" style="color: var(--ra-text);">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
+                        <label for="field-${field.id}" class="block text-sm font-medium mb-2" style="color: var(--ra-text);">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
                 `;
                 if (field.type === "file") {
                     html += `
                         <input id="field-${field.id}" type="file" accept="${field.accept}" 
                                class="w-full ra-input file-input px-6 py-4 text-sm ra-muted">
-                        <div id="file-status-${field.id}" class="text-xs ra-accent mt-1.5"></div>
+                        <div id="file-status-${field.id}" class="text-xs ra-accent mt-1.5" aria-live="polite"></div>
                     `;
                 } else if (field.type === "textarea") {
                     html += `<textarea id="field-${field.id}" rows="3" class="w-full ra-input resize-y min-h-[100px] px-6 py-4" style="border-radius: 22px;" placeholder="${field.placeholder || ''}"></textarea>`;
