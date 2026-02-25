@@ -13,8 +13,13 @@
         .heading { font-family: 'Space Grotesk', sans-serif; }
         .task-card { transition: all .2s cubic-bezier(0.4, 0.0, 0.2, 1); }
         .task-card:hover { transform: translateY(-4px); box-shadow: 0 25px 50px -12px rgb(16 185 129 / 0.25); }
+        .task-card.active { 
+            background-color: #10b981 !important; 
+            color: white !important; 
+            border-color: #10b981 !important; 
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+        }
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-        .mobile-stack { @media (max-width: 1024px) { flex-direction: column !important; } }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 min-h-screen overflow-hidden">
@@ -64,17 +69,17 @@
             
             <div id="form-area" class="flex-1 overflow-auto p-6 lg:p-10 bg-slate-950">
                 <div id="form-content" class="max-w-2xl mx-auto">
-                    <!-- Dynamic form injected here -->
+                    <!-- Welcome screen (initially visible) -->
                     <div id="welcome" class="text-center py-20 text-slate-400">
                         <div class="text-6xl mb-6">🏠</div>
                         <p class="text-xl">Choose a task to build a powerful RealAI prompt</p>
-                        <p class="text-sm mt-3 max-w-xs mx-auto">Plain-English forms • Institutional-grade YAML • Works perfectly on mobile</p>
+                        <p class="text-sm mt-3 max-w-xs mx-auto">Plain-English forms • Institutional-grade YAML • Fully mobile responsive</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- YAML Preview (stacks below on mobile) -->
+        <!-- YAML Preview -->
         <div class="w-full lg:w-5/12 bg-slate-900 border-t lg:border-l border-slate-800 flex flex-col min-h-0">
             <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-shrink-0">
                 <div class="flex items-center gap-3 text-emerald-400">
@@ -91,7 +96,6 @@
     </div>
 
     <script>
-        // Tailwind script already loaded via CDN
         const tasks = [
             {
                 id: "comprehensive_underwriting",
@@ -242,6 +246,7 @@
 
         let currentTask = null;
         let formData = {};
+        let activeCard = null;
 
         function renderTasks(filtered) {
             const container = document.getElementById('tasks-list');
@@ -249,6 +254,7 @@
             filtered.forEach(task => {
                 const el = document.createElement('div');
                 el.className = `task-card bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500 rounded-3xl p-6 cursor-pointer`;
+                el.dataset.id = task.id;
                 el.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div>
@@ -258,17 +264,23 @@
                         </div>
                     </div>
                 `;
-                el.onclick = () => loadTask(task);
+                el.onclick = () => loadTask(task, el);
                 container.appendChild(el);
             });
         }
 
-        function loadTask(task) {
+        function loadTask(task, cardElement) {
+            // Remove active state from previous card
+            if (activeCard) activeCard.classList.remove('active');
+            activeCard = cardElement;
+            activeCard.classList.add('active');
+
             currentTask = task;
             formData = {};
-            document.getElementById('task-title').textContent = task.name;
-            document.getElementById('welcome').style.display = 'none';
 
+            document.getElementById('task-title').textContent = task.name;
+
+            // Build new form HTML
             let html = `<div class="space-y-8">`;
             task.fields.forEach(field => {
                 html += `
@@ -282,14 +294,16 @@
                 `;
             });
             html += `</div>`;
+
+            // Replace entire form content (this fixes the switching bug)
             document.getElementById('form-content').innerHTML = html;
 
-            // Attach live listeners
+            // Attach live input listeners
             task.fields.forEach(field => {
                 const input = document.getElementById(`field-${field.id}`);
                 if (input) {
                     input.addEventListener('input', () => {
-                        formData[field.id] = input.value;
+                        formData[field.id] = input.value.trim();
                         updateYaml();
                     });
                 }
@@ -351,11 +365,15 @@
 
         function copyYaml() {
             const text = document.getElementById('yaml-preview').textContent;
-            if (!text || text.includes("#")) return alert("Generate a prompt first");
+            if (!text || text.includes("#")) {
+                alert("Please select a task and fill in some details first");
+                return;
+            }
             navigator.clipboard.writeText(text).then(() => {
-                const orig = event.currentTarget.innerHTML;
-                event.currentTarget.innerHTML = `<i class="fas fa-check"></i> Copied!`;
-                setTimeout(() => event.currentTarget.innerHTML = orig, 1800);
+                const btn = event.currentTarget;
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                setTimeout(() => { btn.innerHTML = orig; }, 1800);
             });
         }
 
@@ -366,7 +384,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${currentTask.id}-realai-prompt.yaml`;
+            a.download = `${currentTask ? currentTask.id : 'realai'}-prompt.yaml`;
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -381,7 +399,7 @@
             updateYaml();
         }
 
-        // Search
+        // Search handler
         document.getElementById('search').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase().trim();
             const filtered = term === '' ? tasks : tasks.filter(t => 
@@ -393,10 +411,9 @@
 
         // Initial render
         renderTasks(tasks);
-        document.getElementById('yaml-preview').textContent = '# Select a task to begin building your RealAI prompt';
+        document.getElementById('yaml-preview').textContent = '# Select a task on the left to generate your RealAI prompt';
 
-        // Mobile-friendly scrollbars
-        console.log('%c✅ RealPrompt v1.1 – Mobile responsive • Plain English • Expanded fields • Institutional analyst persona • RealAI emerald theme', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.2 – Task switching FIXED • Active task highlight • Fully responsive • RealAI colors', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
