@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RealPrompt • RealAI Prompt Builder v1.7</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&display=swap');
         :root {
@@ -125,6 +125,12 @@
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ra-accent) 72%, transparent); border-radius: 3px; }
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
         .ra-input-invalid {
             border-color: #f87171 !important;
             box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
@@ -159,8 +165,8 @@
             <div class="h-16 ra-surface border-b px-6 flex items-center justify-between flex-shrink-0">
                 <div id="task-title" class="font-semibold text-lg">Select a task from the left</div>
                 <div class="flex items-center gap-4">
-                    <button onclick="resetForm()" class="ra-tertiary-btn flex items-center gap-2 px-5 py-2 text-sm"><i class="fas fa-rotate"></i> Clear</button>
-                    <button onclick="copyYaml()" class="ra-primary-btn px-6 py-2 font-medium flex items-center gap-2"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
+                    <button id="clear-btn" type="button" class="ra-tertiary-btn flex items-center gap-2 px-5 py-2 text-sm"><i class="fas fa-rotate"></i> Clear</button>
+                    <button id="copy-btn" type="button" class="ra-primary-btn px-6 py-2 font-medium flex items-center gap-2"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
                 </div>
             </div>
             <div id="form-area" class="flex-1 overflow-auto p-6 lg:p-10 ra-page">
@@ -172,7 +178,7 @@
         <div class="w-full lg:w-5/12 ra-surface border-t lg:border-l flex flex-col min-h-0">
             <div class="px-6 py-5 border-b ra-surface flex items-center justify-between ra-yaml-header flex-shrink-0">
                 <div class="flex items-center gap-3 ra-accent"><i class="fas fa-file-code text-xl"></i><span class="font-medium tracking-tight">RealAI Prompt (YAML)</span></div>
-                <button onclick="downloadYaml()" class="ra-tertiary-btn flex items-center gap-2 text-sm px-4 py-1.5"><i class="fas fa-download"></i> Download .yaml</button>
+                <button id="download-btn" type="button" class="ra-tertiary-btn flex items-center gap-2 text-sm px-4 py-1.5"><i class="fas fa-download"></i> Download .yaml</button>
             </div>
             <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-[13px] leading-relaxed font-mono whitespace-pre-wrap border-t custom-scroll" style="color: color-mix(in srgb, var(--ra-accent) 28%, var(--ra-text)); background: var(--ra-bg); border-color: var(--ra-border);"></pre>
         </div>
@@ -371,30 +377,100 @@
         let formData = {};
         let activeCard = null;
 
+        function createTaskCard(task) {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-none';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'task-card p-6 cursor-pointer text-left w-full';
+            button.dataset.id = task.id;
+
+            const outer = document.createElement('div');
+            outer.className = 'flex justify-between items-start';
+
+            const content = document.createElement('div');
+
+            const badge = document.createElement('span');
+            badge.className = 'inline-block px-3 py-1 text-[10px] font-medium tracking-widest ra-badge';
+            badge.textContent = task.category;
+
+            const title = document.createElement('div');
+            title.className = 'mt-3 font-semibold leading-tight text-lg';
+            title.textContent = task.name;
+
+            const description = document.createElement('div');
+            description.className = 'ra-muted text-sm mt-2 line-clamp-2';
+            description.textContent = task.description;
+
+            content.appendChild(badge);
+            content.appendChild(title);
+            content.appendChild(description);
+            outer.appendChild(content);
+            button.appendChild(outer);
+            button.addEventListener('click', () => loadTask(task, button));
+
+            listItem.appendChild(button);
+            return listItem;
+        }
+
         function renderTasks(filtered) {
             const container = document.getElementById('tasks-list');
-            container.innerHTML = '';
+            container.replaceChildren();
             filtered.forEach(task => {
-                const listItem = document.createElement('li');
-                listItem.className = 'list-none';
-
-                const el = document.createElement('button');
-                el.type = 'button';
-                el.className = `task-card p-6 cursor-pointer text-left w-full`;
-                el.dataset.id = task.id;
-                el.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="inline-block px-3 py-1 text-[10px] font-medium tracking-widest ra-badge">${task.category}</span>
-                            <div class="mt-3 font-semibold leading-tight text-lg">${task.name}</div>
-                            <div class="ra-muted text-sm mt-2 line-clamp-2">${task.description}</div>
-                        </div>
-                    </div>
-                `;
-                el.addEventListener('click', () => loadTask(task, el));
-                listItem.appendChild(el);
-                container.appendChild(listItem);
+                container.appendChild(createTaskCard(task));
             });
+        }
+
+        function createFieldBlock(field) {
+            const wrapper = document.createElement('div');
+
+            const label = document.createElement('label');
+            label.htmlFor = `field-${field.id}`;
+            label.className = 'block text-sm font-medium mb-2';
+            label.style.color = 'var(--ra-text)';
+            label.append(document.createTextNode(field.label));
+            if (field.required) {
+                const req = document.createElement('span');
+                req.className = 'text-red-400';
+                req.textContent = ' *';
+                label.appendChild(req);
+            }
+            wrapper.appendChild(label);
+
+            let inputEl;
+            if (field.type === 'file') {
+                inputEl = document.createElement('input');
+                inputEl.type = 'file';
+                inputEl.accept = field.accept || '';
+                inputEl.className = 'w-full ra-input file-input px-6 py-4 text-sm ra-muted';
+            } else if (field.type === 'textarea') {
+                inputEl = document.createElement('textarea');
+                inputEl.rows = 3;
+                inputEl.className = 'w-full ra-input resize-y min-h-[100px] px-6 py-4';
+                inputEl.placeholder = field.placeholder || '';
+            } else {
+                inputEl = document.createElement('input');
+                inputEl.type = field.type;
+                inputEl.className = 'w-full ra-input px-6 py-4';
+                inputEl.placeholder = field.placeholder || '';
+            }
+            inputEl.id = `field-${field.id}`;
+            wrapper.appendChild(inputEl);
+
+            if (field.type === 'file') {
+                const statusEl = document.createElement('div');
+                statusEl.id = `file-status-${field.id}`;
+                statusEl.className = 'ra-status text-xs mt-2 px-4 py-2 hidden';
+                wrapper.appendChild(statusEl);
+            }
+
+            const errorEl = document.createElement('div');
+            errorEl.id = `field-error-${field.id}`;
+            errorEl.className = 'ra-field-error text-xs mt-1.5';
+            wrapper.appendChild(errorEl);
+
+            return wrapper;
         }
 
         function loadTask(task, cardElement) {
@@ -407,33 +483,18 @@
 
             document.getElementById('task-title').textContent = task.name;
 
-            let html = `<div class="space-y-10">`;
+            const formContent = document.getElementById('form-content');
+            const formContainer = document.createElement('div');
+            formContainer.className = 'space-y-10';
             task.fields.forEach(field => {
-                html += `
-                    <div>
-                        <label for="field-${field.id}" class="block text-sm font-medium mb-2" style="color: var(--ra-text);">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
-                `;
-                if (field.type === "file") {
-                    html += `
-                        <input id="field-${field.id}" type="file" accept="${field.accept}" 
-                               class="w-full ra-input file-input px-6 py-4 text-sm ra-muted">
-                        <div id="file-status-${field.id}" class="ra-status text-xs mt-2 px-4 py-2 hidden"></div>
-                    `;
-                } else if (field.type === "textarea") {
-                    html += `<textarea id="field-${field.id}" rows="3" class="w-full ra-input resize-y min-h-[100px] px-6 py-4" placeholder="${field.placeholder || ''}"></textarea>`;
-                } else {
-                    html += `<input id="field-${field.id}" type="${field.type}" class="w-full ra-input px-6 py-4" placeholder="${field.placeholder || ''}">`;
-                }
-                html += `<div id="field-error-${field.id}" class="ra-field-error text-xs mt-1.5"></div>`;
-                html += `</div>`;
+                formContainer.appendChild(createFieldBlock(field));
             });
-            html += `</div>`;
-            document.getElementById('form-content').innerHTML = html;
+            formContent.replaceChildren(formContainer);
 
             task.fields.forEach(field => {
                 const el = document.getElementById(`field-${field.id}`);
                 if (!el) return;
-                if (field.type === "file") {
+                if (field.type === 'file') {
                     el.addEventListener('change', async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
@@ -446,7 +507,7 @@
                             if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
                                 const summary = await parseExcelOrCsv(file, field.id);
                                 formData[`${field.id}_summary`] = summary;
-                                if (summary.type === "t12_expense_summary") {
+                                if (summary.type === 't12_expense_summary') {
                                     let statusText = `✓ Parsed ${summary.rows} rows • ${summary.detectedColumns} columns detected`;
                                     if (summary.expenses) {
                                         const numCats = Object.keys(summary.expenses).length;
@@ -455,7 +516,7 @@
                                     }
                                     statusEl.textContent = statusText;
                                 } else {
-                                    statusEl.textContent = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                                    statusEl.textContent = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}${summary.occupancyPct != null ? ` • occ ${summary.occupancyPct}%` : ''}`;
                                 }
                             } else {
                                 statusEl.textContent = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
@@ -538,6 +599,26 @@
             return numericValues.reduce((sum, value) => sum + value, 0);
         }
 
+        function findBestRentRollHeaderRow(rows, scanLimit = 8) {
+            const rentTokens = ['rent', 'market', 'lease', 'unit', 'tenant', 'status', 'sqft'];
+            let bestIndex = 0;
+            let bestScore = -1;
+
+            for (let i = 0; i < Math.min(rows.length, scanLimit); i++) {
+                const row = rows[i] || [];
+                const normalized = row.map(cell => (typeof cell === 'string' ? cell.toLowerCase() : ''));
+                const tokenHits = normalized.reduce((count, cell) => count + (rentTokens.some(token => cell.includes(token)) ? 1 : 0), 0);
+                const nonEmpty = row.filter(cell => cell != null && String(cell).trim() !== '').length;
+                const score = tokenHits * 3 + nonEmpty;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            return bestIndex;
+        }
+
         async function parseExcelOrCsv(file, fieldId = '') {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -595,21 +676,57 @@
                                 rawRows: rows
                             });
                         } else {
-                            // original rent-roll logic
-                            let units = json.length - 1; // subtract header
-                            let totalRent = 0, count = 0;
-                            for (let i = 1; i < json.length; i++) {
-                                const row = json[i];
-                                const rentIndex = row.findIndex(cell => cell && typeof cell === 'string' && cell.toLowerCase().includes('rent'));
-                                const rent = rentIndex >= 0 ? parseFloat(row[rentIndex + 1] || row[rentIndex] || 0) : 0;
-                                if (rent > 0) { totalRent += rent; count++; }
+                            const headerRowIndex = findBestRentRollHeaderRow(json);
+                            const header = (json[headerRowIndex] || []).map(cell => (cell == null ? '' : String(cell).trim().toLowerCase()));
+                            const rentColumnTokens = ['market rent', 'gross rent', 'contract rent', 'rent'];
+                            const occupiedTokens = ['occupied', 'status', 'lease status'];
+                            const unitTokens = ['unit', 'unit #', 'unit no', 'apartment'];
+
+                            const findColumnIndex = (tokens) => header.findIndex(col => tokens.some(token => col.includes(token)));
+                            const rentCol = findColumnIndex(rentColumnTokens);
+                            const occupiedCol = findColumnIndex(occupiedTokens);
+                            const unitCol = findColumnIndex(unitTokens);
+
+                            let units = 0;
+                            let occupiedUnits = 0;
+                            let totalRent = 0;
+                            let rentCount = 0;
+
+                            for (let i = headerRowIndex + 1; i < json.length; i++) {
+                                const row = json[i] || [];
+                                const unitRef = unitCol >= 0 ? row[unitCol] : row[0];
+                                const hasUnit = unitRef != null && String(unitRef).trim() !== '';
+                                if (!hasUnit) continue;
+
+                                units += 1;
+
+                                const occupancyValue = occupiedCol >= 0 ? String(row[occupiedCol] || '').toLowerCase() : '';
+                                const isOccupied = occupiedCol < 0 || occupancyValue.includes('occ') || occupancyValue.includes('leased') || occupancyValue === 'o';
+                                if (isOccupied) occupiedUnits += 1;
+
+                                let rent = NaN;
+                                if (rentCol >= 0) {
+                                    rent = parseCurrencyNumber(row[rentCol]);
+                                } else {
+                                    const numericRowValues = row.map(parseCurrencyNumber).filter(v => !isNaN(v) && v > 0 && v < 100000);
+                                    rent = numericRowValues.length ? Math.max(...numericRowValues) : NaN;
+                                }
+
+                                if (!isNaN(rent) && rent > 0) {
+                                    totalRent += rent;
+                                    rentCount += 1;
+                                }
                             }
+
+                            const occupancyPct = units > 0 ? Math.round((occupiedUnits / units) * 100) : null;
+
                             resolve({
                                 type: "rent_roll_summary",
                                 rows: json.length,
                                 detectedColumns: detectedColumns,
-                                units: units,
-                                avgRent: count ? Math.round(totalRent / count) : null,
+                                units: units || null,
+                                avgRent: rentCount ? Math.round(totalRent / rentCount) : null,
+                                occupancyPct,
                                 rawRows: json.length
                             });
                         }
@@ -674,7 +791,16 @@
             }
         }
 
-        function copyYaml() {
+        function setButtonLabel(btn, iconClass, label) {
+            if (!btn) return;
+            btn.replaceChildren();
+            const icon = document.createElement('i');
+            icon.className = iconClass;
+            btn.appendChild(icon);
+            btn.append(document.createTextNode(` ${label}`));
+        }
+
+        function copyYaml(btn) {
             const text = document.getElementById('yaml-preview').textContent;
             if (!text || text.includes("# Select")) {
                 alert("Please select a task and fill in some details first");
@@ -685,10 +811,8 @@
                 return;
             }
             navigator.clipboard.writeText(text).then(() => {
-                const btn = event.currentTarget;
-                const orig = btn.innerHTML;
-                btn.innerHTML = `<i class="fas fa-check"></i> Copied!`;
-                setTimeout(() => btn.innerHTML = orig, 1800);
+                setButtonLabel(btn, 'fas fa-check', 'Copied!');
+                setTimeout(() => setButtonLabel(btn, 'fas fa-copy', 'Copy YAML Prompt'), 1800);
             });
         }
 
@@ -759,6 +883,10 @@
             );
             renderTasks(filtered);
         });
+
+        document.getElementById('clear-btn').addEventListener('click', resetForm);
+        document.getElementById('download-btn').addEventListener('click', downloadYaml);
+        document.getElementById('copy-btn').addEventListener('click', (e) => copyYaml(e.currentTarget));
 
         // Initial render
         renderTasks(tasks);
