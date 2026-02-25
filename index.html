@@ -3,241 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealAI Prompt Builder • Multifamily Edition</title>
+    <title>RealPrompt • RealAI Prompt Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .heading { font-family: 'Space Grotesk', system-ui, sans-serif; }
-        pre { font-family: ui-monospace, monospace; }
-        .task-card { transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .task-card:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -5px rgb(16 185 129 / 0.15); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .heading { font-family: 'Space Grotesk', sans-serif; }
+        .task-card { transition: all .2s cubic-bezier(0.4, 0.0, 0.2, 1); }
+        .task-card:hover { transform: translateY(-4px); box-shadow: 0 25px 50px -12px rgb(16 185 129 / 0.25); }
+        pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        .mobile-stack { @media (max-width: 1024px) { flex-direction: column !important; } }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-200 min-h-screen">
-    <div class="flex h-screen">
-        <!-- Sidebar: Task Selector -->
-        <div class="w-96 bg-zinc-900 border-r border-zinc-800 flex flex-col">
-            <div class="p-8 border-b border-zinc-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading">R</div>
-                    <div>
-                        <div class="heading text-3xl font-semibold tracking-tighter">RealPrompt</div>
-                        <div class="text-emerald-400 text-xs font-medium tracking-widest">FOR REALAI • FUNDRISE</div>
-                    </div>
+<body class="bg-slate-950 text-slate-200 min-h-screen overflow-hidden">
+    <div class="flex flex-col lg:flex-row h-screen">
+        <!-- Sidebar: Tasks -->
+        <div class="w-full lg:w-96 bg-slate-900 border-b lg:border-r border-slate-800 flex flex-col">
+            <div class="p-6 border-b border-slate-800 flex items-center gap-3 bg-gradient-to-r from-emerald-950 to-slate-900">
+                <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
+                <div>
+                    <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
+                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI</div>
                 </div>
             </div>
             
             <div class="p-6">
-                <input id="search" type="text" placeholder="Search tasks..." 
-                       class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-emerald-500">
-            </div>
-            
-            <div id="tasks" class="flex-1 overflow-auto px-6 space-y-3 pb-8">
-                <!-- Populated by JS -->
-            </div>
-        </div>
-
-        <!-- Main Area -->
-        <div class="flex-1 flex flex-col">
-            <div id="header" class="h-16 border-b border-zinc-800 bg-zinc-900 px-8 flex items-center justify-between">
-                <div id="current-task" class="font-medium text-lg">Select a task to start</div>
-                <button onclick="resetAll()" 
-                        class="px-5 py-2 text-sm text-zinc-400 hover:text-white flex items-center gap-2">
-                    <i class="fas fa-undo"></i> Reset
-                </button>
-            </div>
-            
-            <div class="flex-1 p-8 overflow-auto" id="main-content">
-                <div id="form-container" class="max-w-2xl mx-auto">
-                    <!-- Dynamic form injected here -->
+                <div class="relative">
+                    <input id="search" type="text" placeholder="Search tasks or keywords..." 
+                           class="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-3xl px-5 py-3.5 text-sm placeholder-slate-500 focus:outline-none">
+                    <i class="fas fa-search absolute right-5 top-4 text-slate-500"></i>
                 </div>
             </div>
             
-            <div class="border-t border-zinc-800 bg-zinc-900 p-6 flex justify-end">
-                <button onclick="copyYaml()" 
-                        class="bg-emerald-600 hover:bg-emerald-700 px-8 py-3 rounded-2xl font-medium flex items-center gap-3">
-                    <i class="fas fa-copy"></i>
-                    Copy YAML Prompt
-                </button>
+            <div id="tasks-list" class="flex-1 overflow-auto px-6 space-y-4 pb-8 custom-scroll">
+                <!-- JS populated -->
+            </div>
+            
+            <div class="p-6 border-t border-slate-800 text-xs text-slate-500">
+                Built for multifamily analysts • Powered by RealAI
             </div>
         </div>
 
-        <!-- YAML Preview -->
-        <div class="w-2/5 bg-zinc-900 border-l border-zinc-800 flex flex-col">
-            <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
-                <div class="font-medium flex items-center gap-2">
-                    <i class="fas fa-file-code text-emerald-400"></i>
-                    Generated RealAI Prompt (YAML)
+        <!-- Main Form Area -->
+        <div class="flex-1 flex flex-col min-h-0">
+            <div class="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
+                <div id="task-title" class="font-semibold text-lg text-white">Select a task from the left</div>
+                <div class="flex items-center gap-4">
+                    <button onclick="resetForm()" 
+                            class="flex items-center gap-2 px-5 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+                        <i class="fas fa-rotate"></i> Clear
+                    </button>
+                    <button onclick="copyYaml()" 
+                            class="bg-emerald-600 hover:bg-emerald-700 transition-all px-6 py-2 rounded-3xl font-medium flex items-center gap-2 shadow-lg shadow-emerald-900/50">
+                        <i class="fas fa-copy"></i> Copy Prompt
+                    </button>
+                </div>
+            </div>
+            
+            <div id="form-area" class="flex-1 overflow-auto p-6 lg:p-10 bg-slate-950">
+                <div id="form-content" class="max-w-2xl mx-auto">
+                    <!-- Dynamic form injected here -->
+                    <div id="welcome" class="text-center py-20 text-slate-400">
+                        <div class="text-6xl mb-6">🏠</div>
+                        <p class="text-xl">Choose a task to build a powerful RealAI prompt</p>
+                        <p class="text-sm mt-3 max-w-xs mx-auto">Plain-English forms • Institutional-grade YAML • Works perfectly on mobile</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- YAML Preview (stacks below on mobile) -->
+        <div class="w-full lg:w-5/12 bg-slate-900 border-t lg:border-l border-slate-800 flex flex-col min-h-0">
+            <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-shrink-0">
+                <div class="flex items-center gap-3 text-emerald-400">
+                    <i class="fas fa-file-code text-xl"></i>
+                    <span class="font-medium tracking-tight">RealAI Prompt (YAML)</span>
                 </div>
                 <button onclick="downloadYaml()" 
-                        class="text-emerald-400 hover:text-emerald-300 text-sm flex items-center gap-2">
+                        class="text-emerald-400 hover:text-emerald-300 flex items-center gap-2 text-sm">
                     <i class="fas fa-download"></i> Download
                 </button>
             </div>
-            <pre id="yaml" class="flex-1 p-8 overflow-auto text-emerald-300 text-sm leading-relaxed bg-black/40 font-mono whitespace-pre-wrap"></pre>
+            <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-emerald-200/90 text-[13px] leading-relaxed bg-slate-950 font-mono whitespace-pre-wrap border-t border-slate-800 custom-scroll"></pre>
         </div>
     </div>
 
     <script>
-        // === TASK LIBRARY (12 tasks) ===
+        // Tailwind script already loaded via CDN
         const tasks = [
             {
                 id: "comprehensive_underwriting",
                 category: "acquisitions",
                 name: "Comprehensive Property Underwriting & Valuation",
-                description: "Full institutional-grade underwriting with DCF, comps, and go/no-go recommendation.",
+                description: "Full institutional underwriting including valuation, pro forma, comps, and recommendation.",
                 fields: [
-                    {name: "address", label: "Property Address", type: "text", placeholder: "123 Main St, Austin, TX 78701", required: true},
-                    {name: "purchase_price", label: "Offer Price ($)", type: "number", placeholder: "42500000", required: true},
-                    {name: "unit_mix", label: "Unit Mix", type: "textarea", placeholder: "120 x 1BR\n80 x 2BR", required: true},
-                    {name: "year_built", label: "Year Built", type: "number"},
-                    {name: "sqft", label: "Total Rentable SF", type: "number"},
-                    {name: "current_occupancy", label: "Current Occupancy (%)", type: "number", placeholder: "94"},
+                    {id: "address", label: "Full property address (street, city, state, ZIP)", type: "text", placeholder: "1425 Oak Grove Lane, Austin, TX 78704", required: true},
+                    {id: "offer_price", label: "Your proposed offer price", type: "number", placeholder: "42500000"},
+                    {id: "unit_mix", label: "Unit mix (e.g., 80 studios, 120 1BR, 60 2BR, 20 3BR)", type: "textarea", placeholder: "80 studios\n120 1BR\n60 2BR", required: true},
+                    {id: "year_built", label: "Year built or major renovation", type: "number", placeholder: "2019"},
+                    {id: "total_sf", label: "Total rentable square feet", type: "number", placeholder: "185000"},
+                    {id: "occupancy", label: "Current occupancy percentage", type: "number", placeholder: "93"},
+                    {id: "noi", label: "Trailing 12-month NOI (if known)", type: "number", placeholder: "2850000"},
+                    {id: "financing", label: "Financing assumptions (LTV, interest rate, term)", type: "text", placeholder: "65% LTV at 5.25% for 10 years"},
+                    {id: "hold_period", label: "Intended holding period in years", type: "number", placeholder: "7"}
                 ]
             },
             {
                 id: "rent_roll_analysis",
                 category: "acquisitions",
-                name: "Rent Roll + Income Analysis",
-                description: "Deep dive into current income, loss-to-lease, and revenue upside.",
+                name: "Rent Roll & Income Analysis",
+                description: "Deep income analysis, loss-to-lease, revenue upside, and stabilization forecast.",
                 fields: [
-                    {name: "address", label: "Property Address", type: "text", required: true},
-                    {name: "rent_roll", label: "Rent Roll (paste or describe)", type: "textarea", placeholder: "Unit 101 - 1BR - $1,650 - leased", required: true},
-                    {name: "market_rent", label: "Market Rent per SF", type: "number"},
+                    {id: "address", label: "Full property address", type: "text", required: true},
+                    {id: "rent_roll", label: "Current rent roll details or summary", type: "textarea", placeholder: "Unit 101: 1BR $1,850 leased until 2027", required: true},
+                    {id: "market_rents", label: "Your best estimate of market rents by unit type", type: "textarea", placeholder: "1BR: $2,050\n2BR: $2,650"},
+                    {id: "loss_to_lease", label: "Estimated loss-to-lease percentage", type: "number", placeholder: "8"},
+                    {id: "other_income", label: "Monthly other income (parking, fees, laundry, etc.)", type: "number", placeholder: "18500"}
                 ]
             },
             {
                 id: "expense_benchmarking",
                 category: "acquisitions",
-                name: "Operating Expense Benchmarking & Analysis",
-                description: "Benchmark expenses vs. market and identify savings opportunities.",
-                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+                name: "Operating Expense Benchmarking",
+                description: "Benchmark expenses against market and identify cost-saving opportunities.",
+                fields: [
+                    {id: "address", label: "Full property address", type: "text", required: true},
+                    {id: "current_expenses", label: "Current annual operating expenses (or per unit)", type: "textarea", placeholder: "Total $1.85M or $1.45/SF"},
+                    {id: "expense_categories", label: "Key expense categories you want benchmarked", type: "textarea", placeholder: "Property taxes, utilities, payroll, repairs"}
+                ]
             },
             {
                 id: "sales_comps",
                 category: "acquisitions",
-                name: "Sales Comps & Pricing Benchmarking",
-                description: "Find and analyze the best sales comps within the submarket.",
-                fields: [{name: "address", label: "Subject Property Address", type: "text", required: true}]
+                name: "Sales Comps & Pricing Analysis",
+                description: "Identify and analyze the most relevant recent sales comparables.",
+                fields: [
+                    {id: "address", label: "Subject property address", type: "text", required: true},
+                    {id: "search_radius", label: "Desired search radius (miles)", type: "number", placeholder: "1.5"},
+                    {id: "timeframe", label: "Lookback period for sales (months)", type: "number", placeholder: "24"},
+                    {id: "target_cap_rate", label: "Target going-in cap rate range", type: "text", placeholder: "5.25% - 5.75%"}
+                ]
             },
             {
                 id: "rental_comps",
                 category: "acquisitions",
                 name: "Rental Comps Analysis",
-                description: "Detailed rental comps table and rent growth forecast.",
-                fields: [{name: "address", label: "Subject Property Address", type: "text", required: true}]
+                description: "Detailed rental comparable analysis and rent growth forecast.",
+                fields: [
+                    {id: "address", label: "Subject property address", type: "text", required: true},
+                    {id: "comp_radius", label: "Search radius for rental comps (miles)", type: "number", placeholder: "1"},
+                    {id: "growth_assumption", label: "Expected annual rent growth for next 3 years", type: "text", placeholder: "4.5% Year 1, 3.5% Year 2-3"}
+                ]
             },
             {
                 id: "sensitivity_analysis",
                 category: "acquisitions",
-                name: "Full Sensitivity & Scenario Analysis",
-                description: "Stress-test IRR, equity multiple, and exit cap rates.",
+                name: "Sensitivity & Scenario Analysis",
+                description: "Stress-test returns under multiple economic scenarios.",
                 fields: [
-                    {name: "address", label: "Property Address", type: "text", required: true},
-                    {name: "base_irr", label: "Target Base IRR (%)", type: "number", placeholder: "14"},
+                    {id: "address", label: "Property address", type: "text", required: true},
+                    {id: "base_irr", label: "Target base-case IRR (%)", type: "number", placeholder: "15"},
+                    {id: "scenarios", label: "Scenarios to test (e.g., recession, rate hike)", type: "textarea", placeholder: "+150 bps rates\n-10% rent growth\n+200 bps exit cap"}
                 ]
             },
             {
                 id: "ic_memo",
                 category: "acquisitions",
                 name: "Investment Committee Memo Draft",
-                description: "Generate a complete, ready-to-present IC memo.",
-                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+                description: "Full professional IC memo ready for presentation.",
+                fields: [
+                    {id: "address", label: "Property address", type: "text", required: true},
+                    {id: "investment_thesis", label: "Your high-level investment thesis (1-2 sentences)", type: "textarea"}
+                ]
             },
             {
                 id: "dd_review",
                 category: "acquisitions",
                 name: "Due Diligence Review & Risk Summary",
-                description: "Summarize DD findings and key risks with mitigants.",
-                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+                description: "Summarize DD findings, red flags, and mitigation strategies.",
+                fields: [
+                    {id: "address", label: "Property address", type: "text", required: true},
+                    {id: "dd_findings", label: "Key due diligence findings or concerns", type: "textarea", placeholder: "Roof needs replacement in 3 years, environmental Phase I clean"}
+                ]
             },
             {
                 id: "ground_up_proforma",
                 category: "development",
                 name: "Ground-Up Development Pro Forma & Feasibility",
-                description: "Full development pro forma, yield-on-cost, and entitlements summary.",
+                description: "Full development feasibility study and pro forma.",
                 fields: [
-                    {name: "site_address", label: "Site Address", type: "text", required: true},
-                    {name: "units_planned", label: "Planned Units", type: "number", required: true},
-                    {name: "total_cost", label: "Total Development Cost ($)", type: "number", required: true},
+                    {id: "site_address", label: "Site address", type: "text", required: true},
+                    {id: "planned_units", label: "Planned total units", type: "number", required: true},
+                    {id: "total_cost", label: "Total estimated development cost", type: "number", required: true},
+                    {id: "entitlements", label: "Current entitlement status", type: "text", placeholder: "Zoned MF-3, approvals expected Q3"},
+                    {id: "construction_start", label: "Anticipated construction start date", type: "text", placeholder: "Q3 2027"},
+                    {id: "absorption_rate", label: "Expected monthly absorption rate", type: "text", placeholder: "18 units/month"}
                 ]
             },
             {
                 id: "value_add",
                 category: "development",
-                name: "Value-Add / Renovation Underwriting",
-                description: "Scope, budget, and return analysis for renovation projects.",
-                fields: [{name: "address", label: "Property Address", type: "text", required: true}]
+                name: "Value-Add Renovation Underwriting",
+                description: "Scope, budget, and returns for renovation/value-add projects.",
+                fields: [
+                    {id: "address", label: "Property address", type: "text", required: true},
+                    {id: "renovation_scope", label: "Renovation scope summary", type: "textarea", placeholder: "Full interior + common area refresh, new amenities"},
+                    {id: "renovation_budget", label: "Total renovation budget", type: "number", placeholder: "8500000"},
+                    {id: "rent_bump", label: "Expected average rent increase per unit", type: "number", placeholder: "425"}
+                ]
             },
             {
                 id: "site_feasibility",
                 category: "development",
                 name: "Site Acquisition Feasibility & Entitlements",
-                description: "Entitlement risk, zoning, and acquisition feasibility.",
-                fields: [{name: "site_address", label: "Site Address", type: "text", required: true}]
+                description: "Site feasibility, zoning, and entitlement risk assessment.",
+                fields: [
+                    {id: "site_address", label: "Site address", type: "text", required: true},
+                    {id: "land_size", label: "Land size in acres or square feet", type: "text", placeholder: "8.4 acres"},
+                    {id: "zoning", label: "Current zoning and density allowed", type: "text", placeholder: "MF-4, 45 units/acre"},
+                    {id: "entitlement_risks", label: "Known entitlement or permitting risks", type: "textarea"}
+                ]
             },
             {
                 id: "yield_on_cost",
                 category: "development",
                 name: "Yield-on-Cost & Development Return Analysis",
-                description: "Detailed yield-on-cost, IRR, and return metrics.",
-                fields: [{name: "site_address", label: "Site Address", type: "text", required: true}]
+                description: "Detailed yield-on-cost, IRR, and equity return metrics.",
+                fields: [
+                    {id: "site_address", label: "Site address", type: "text", required: true},
+                    {id: "total_cost", label: "Total all-in development cost", type: "number"},
+                    {id: "stabilized_noi", label: "Projected stabilized NOI", type: "number"},
+                    {id: "target_yield", label: "Target yield-on-cost range", type: "text", placeholder: "7.25% - 7.75%"}
+                ]
             }
         ];
 
         let currentTask = null;
         let formData = {};
 
-        function renderTasks(filteredTasks) {
-            const container = document.getElementById('tasks');
+        function renderTasks(filtered) {
+            const container = document.getElementById('tasks-list');
             container.innerHTML = '';
-            filteredTasks.forEach(task => {
-                const card = document.createElement('div');
-                card.className = `task-card bg-zinc-800 border border-zinc-700 hover:border-emerald-500 rounded-3xl p-6 cursor-pointer`;
-                card.innerHTML = `
-                    <div class="flex items-start justify-between">
+            filtered.forEach(task => {
+                const el = document.createElement('div');
+                el.className = `task-card bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500 rounded-3xl p-6 cursor-pointer`;
+                el.innerHTML = `
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div class="text-xs uppercase tracking-widest text-emerald-400">${task.category}</div>
-                            <div class="font-semibold mt-1 leading-tight">${task.name}</div>
+                            <span class="inline-block px-3 py-1 text-[10px] font-medium tracking-widest rounded-2xl bg-emerald-950 text-emerald-400">${task.category}</span>
+                            <div class="mt-3 font-semibold leading-tight text-lg">${task.name}</div>
+                            <div class="text-slate-400 text-sm mt-2 line-clamp-2">${task.description}</div>
                         </div>
                     </div>
                 `;
-                card.onclick = () => loadTask(task);
-                container.appendChild(card);
+                el.onclick = () => loadTask(task);
+                container.appendChild(el);
             });
         }
 
         function loadTask(task) {
             currentTask = task;
             formData = {};
-            document.getElementById('current-task').textContent = task.name;
-            
-            const formContainer = document.getElementById('form-container');
-            formContainer.innerHTML = `
-                <div class="text-zinc-400 text-sm mb-8">${task.description}</div>
-                <form id="dynamic-form" class="space-y-8"></form>
-            `;
+            document.getElementById('task-title').textContent = task.name;
+            document.getElementById('welcome').style.display = 'none';
 
-            const form = document.getElementById('dynamic-form');
+            let html = `<div class="space-y-8">`;
             task.fields.forEach(field => {
-                const div = document.createElement('div');
-                div.innerHTML = `
-                    <label class="block text-sm text-zinc-400 mb-2">\( {field.label} \){field.required ? ' *' : ''}</label>
-                    ${field.type === 'textarea' ? 
-                        `<textarea name="\( {field.name}" rows="4" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-emerald-500" placeholder=" \){field.placeholder || ''}"></textarea>` :
-                        `<input type="\( {field.type}" name=" \){field.name}" placeholder="${field.placeholder || ''}" 
-                               class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-emerald-500">`
-                    }
+                html += `
+                    <div>
+                        <label class="block text-slate-300 text-sm font-medium mb-2">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
+                        ${field.type === 'textarea' ? 
+                            `<textarea id="field-${field.id}" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-3xl px-6 py-4 focus:outline-none focus:border-emerald-500 resize-y min-h-[100px]" placeholder="${field.placeholder || ''}"></textarea>` :
+                            `<input id="field-${field.id}" type="${field.type}" class="w-full bg-slate-900 border border-slate-700 rounded-3xl px-6 py-4 focus:outline-none focus:border-emerald-500" placeholder="${field.placeholder || ''}">`
+                        }
+                    </div>
                 `;
-                form.appendChild(div);
+            });
+            html += `</div>`;
+            document.getElementById('form-content').innerHTML = html;
 
-                // Auto-save on input
-                const input = div.querySelector('input, textarea');
+            // Attach live listeners
+            task.fields.forEach(field => {
+                const input = document.getElementById(`field-${field.id}`);
                 if (input) {
-                    input.addEventListener('input', (e) => {
-                        formData[field.name] = e.target.value;
+                    input.addEventListener('input', () => {
+                        formData[field.id] = input.value;
                         updateYaml();
                     });
                 }
@@ -246,78 +298,93 @@
             updateYaml();
         }
 
+        function getPersonaGuidance() {
+            if (!currentTask) return "";
+            const isDev = currentTask.category === "development";
+            return `You are a senior multifamily analyst at a leading institutional ${isDev ? 'development' : 'acquisitions'} firm. You deliver rigorous, data-driven, institutional-grade analysis with conservative assumptions, clear market context, detailed comps, financial modeling best practices, and actionable go/no-go recommendations.`;
+        }
+
         function updateYaml() {
             if (!currentTask) return;
-
+            
             const yamlObj = {
-                version: "1.0",
+                version: "1.1",
                 generated_at: new Date().toISOString(),
                 task: currentTask.id,
-                realai_guidance: "You are an institutional-grade multifamily acquisitions/development analyst with 15+ years experience at a $7B+ platform like Fundrise. Use all available data (rents, comps, sales history, demographics, household economics). Be precise, data-driven, and conservative.",
+                realai_guidance: getPersonaGuidance(),
                 property_profile: {
-                    address: formData.address || formData.site_address || "—",
+                    address: formData.address || formData.site_address || "Not provided",
                     ...formData
                 },
-                analysis_objectives: currentTask.id.includes("underwriting") ? 
-                    ["Full 10-year pro forma with DCF, IRR, equity multiple", "Benchmark vs top 10 rental & sales comps", "Risk assessment and go/no-go recommendation"] : 
-                    ["Detailed analysis per task requirements"],
+                analysis_objectives: [
+                    "Produce institutional-quality analysis",
+                    "Include relevant market data, comps, and forecasts",
+                    "Show all key metrics and assumptions",
+                    "Provide clear recommendation with supporting rationale"
+                ],
                 constraints_and_assumptions: {
-                    hold_period_years: 5,
+                    conservative_assumptions: true,
+                    hold_period_years: parseInt(formData.hold_period) || 7,
                     target_irr: "≥14%",
-                    // add more from form if present
+                    vacancy_stabilized: "5-6%"
                 },
                 required_output_structure: [
-                    "Executive Summary (thesis + recommendation)",
-                    "Property/Market Overview",
-                    "Comps Tables",
-                    "Financial Analysis",
-                    "Key Risks & Mitigants",
-                    "Actionable Recommendations"
+                    "Executive Summary & Recommendation",
+                    "Property Overview",
+                    "Market & Submarket Analysis",
+                    "Comps Tables (rental & sales where applicable)",
+                    "Financial Pro Forma & Key Metrics",
+                    "Sensitivity / Scenario Analysis",
+                    "Risks & Mitigants",
+                    "Actionable Next Steps"
                 ],
-                additional_context: "Generated via RealAI Prompt Builder for maximum signal and consistency."
+                additional_context: "Prompt generated via RealPrompt Builder for maximum consistency and signal. All inputs provided by user."
             };
 
             try {
-                const yamlStr = jsyaml.dump(yamlObj, {indent: 2});
-                document.getElementById('yaml').textContent = yamlStr;
-            } catch(e) {
-                document.getElementById('yaml').textContent = "# Error generating YAML";
+                const yamlStr = jsyaml.dump(yamlObj, { indent: 2, lineWidth: 120 });
+                document.getElementById('yaml-preview').textContent = yamlStr;
+            } catch (e) {
+                document.getElementById('yaml-preview').textContent = "# YAML generation error";
             }
         }
 
         function copyYaml() {
-            const text = document.getElementById('yaml').textContent;
+            const text = document.getElementById('yaml-preview').textContent;
+            if (!text || text.includes("#")) return alert("Generate a prompt first");
             navigator.clipboard.writeText(text).then(() => {
-                const btns = document.querySelectorAll('button');
-                const orig = btns[0].innerHTML;
-                btns[0].innerHTML = `<i class="fas fa-check"></i> Copied!`;
-                setTimeout(() => btns[0].innerHTML = orig, 2000);
+                const orig = event.currentTarget.innerHTML;
+                event.currentTarget.innerHTML = `<i class="fas fa-check"></i> Copied!`;
+                setTimeout(() => event.currentTarget.innerHTML = orig, 1800);
             });
         }
 
         function downloadYaml() {
-            const text = document.getElementById('yaml').textContent;
-            const blob = new Blob([text], {type: 'text/yaml'});
+            const text = document.getElementById('yaml-preview').textContent;
+            if (!text || text.includes("#")) return;
+            const blob = new Blob([text], { type: 'text/yaml' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${currentTask ? currentTask.id : 'realai-prompt'}.yaml`;
+            a.download = `${currentTask.id}-realai-prompt.yaml`;
             a.click();
             URL.revokeObjectURL(url);
         }
 
-        function resetAll() {
-            currentTask = null;
+        function resetForm() {
+            if (!currentTask) return;
             formData = {};
-            document.getElementById('current-task').textContent = 'Select a task to start';
-            document.getElementById('form-container').innerHTML = `<div class="text-center py-32 text-zinc-500">Select a task from the left to begin building your prompt</div>`;
-            document.getElementById('yaml').textContent = '# Select a task to generate prompt';
+            currentTask.fields.forEach(f => {
+                const el = document.getElementById(`field-${f.id}`);
+                if (el) el.value = '';
+            });
+            updateYaml();
         }
 
-        // Search functionality
+        // Search
         document.getElementById('search').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = tasks.filter(t => 
+            const term = e.target.value.toLowerCase().trim();
+            const filtered = term === '' ? tasks : tasks.filter(t => 
                 t.name.toLowerCase().includes(term) || 
                 t.description.toLowerCase().includes(term)
             );
@@ -326,9 +393,10 @@
 
         // Initial render
         renderTasks(tasks);
+        document.getElementById('yaml-preview').textContent = '# Select a task to begin building your RealAI prompt';
 
-        // Tailwind script already loaded
-        console.log('%c✅ RealAI Prompt Builder v1.0 ready', 'color:#10b981; font-weight:bold');
+        // Mobile-friendly scrollbars
+        console.log('%c✅ RealPrompt v1.1 – Mobile responsive • Plain English • Expanded fields • Institutional analyst persona • RealAI emerald theme', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
