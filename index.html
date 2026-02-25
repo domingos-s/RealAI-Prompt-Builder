@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealPrompt • RealAI Prompt Builder v1.3 FULL</title>
+    <title>RealPrompt • RealAI Prompt Builder v1.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -14,12 +14,7 @@
         .heading { font-family: 'Space Grotesk', sans-serif; }
         .task-card { transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
         .task-card:hover { transform: translateY(-4px); box-shadow: 0 25px 50px -12px rgb(16 185 129 / 0.25); }
-        .task-card.active { 
-            background-color: #10b981 !important; 
-            color: white !important; 
-            border-color: #10b981 !important; 
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-        }
+        .task-card.active { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); }
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
@@ -33,21 +28,17 @@
                 <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
                 <div>
                     <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
-                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.3 FULL</div>
+                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.4</div>
                 </div>
             </div>
             <div class="p-6">
                 <div class="relative">
-                    <input id="search" type="text" placeholder="Search tasks or keywords..." 
-                           class="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-3xl px-5 py-3.5 text-sm placeholder-slate-500 focus:outline-none">
+                    <input id="search" type="text" placeholder="Search tasks..." class="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-3xl px-5 py-3.5 text-sm placeholder-slate-500 focus:outline-none">
                     <i class="fas fa-search absolute right-5 top-4 text-slate-500"></i>
                 </div>
             </div>
             <div id="tasks-list" class="flex-1 overflow-auto px-6 space-y-4 pb-8 custom-scroll"></div>
-            <div class="p-6 border-t border-slate-800 text-xs text-slate-500 flex items-center justify-between">
-                <span>12 institutional tasks • Excel auto-parse</span>
-                <span class="text-emerald-400 cursor-pointer hover:underline" onclick="window.location.reload()">Reset</span>
-            </div>
+            <div class="p-6 border-t border-slate-800 text-xs text-slate-500">12 professional tasks • Smart Excel parsing</div>
         </div>
 
         <!-- Form Area -->
@@ -55,7 +46,7 @@
             <div class="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
                 <div id="task-title" class="font-semibold text-lg text-white">Select a task from the left</div>
                 <div class="flex items-center gap-4">
-                    <button onclick="resetForm()" class="flex items-center gap-2 px-5 py-2 text-sm text-slate-400 hover:text-white transition-colors"><i class="fas fa-rotate"></i> Clear form</button>
+                    <button onclick="resetForm()" class="flex items-center gap-2 px-5 py-2 text-sm text-slate-400 hover:text-white transition-colors"><i class="fas fa-rotate"></i> Clear</button>
                     <button onclick="copyYaml()" class="bg-emerald-600 hover:bg-emerald-700 transition-all px-6 py-2 rounded-3xl font-medium flex items-center gap-2 shadow-lg shadow-emerald-900/50"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
                 </div>
             </div>
@@ -67,13 +58,8 @@
         <!-- YAML Preview -->
         <div class="w-full lg:w-5/12 bg-slate-900 border-t lg:border-l border-slate-800 flex flex-col min-h-0">
             <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-shrink-0">
-                <div class="flex items-center gap-3 text-emerald-400">
-                    <i class="fas fa-file-code text-xl"></i>
-                    <span class="font-medium tracking-tight">RealAI Prompt (YAML)</span>
-                </div>
-                <button onclick="downloadYaml()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-2 text-sm">
-                    <i class="fas fa-download"></i> Download .yaml
-                </button>
+                <div class="flex items-center gap-3 text-emerald-400"><i class="fas fa-file-code text-xl"></i><span class="font-medium tracking-tight">RealAI Prompt (YAML)</span></div>
+                <button onclick="downloadYaml()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-2 text-sm"><i class="fas fa-download"></i> Download .yaml</button>
             </div>
             <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-emerald-200/90 text-[13px] leading-relaxed bg-slate-950 font-mono whitespace-pre-wrap border-t border-slate-800 custom-scroll"></pre>
         </div>
@@ -336,9 +322,15 @@
                         formData[field.id] = file.name;
 
                         if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
-                            const summary = await parseExcelOrCsv(file);
+                            const summary = await parseExcelOrCsv(file, field.id);
                             formData[`${field.id}_summary`] = summary;
-                            document.getElementById(`file-status-${field.id}`).innerHTML = `✓ Parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                            if (summary.type === "t12_expense_summary") {
+                                document.getElementById(`file-status-${field.id}`).innerHTML = `✓ T-12 expense file detected — ${summary.rows} rows parsed`;
+                            } else {
+                                document.getElementById(`file-status-${field.id}`).innerHTML = `✓ Rent roll parsed: ${summary.units || '?'} units • avg rent $${summary.avgRent || '?'}`;
+                            }
+                        } else {
+                            document.getElementById(`file-status-${field.id}`).innerHTML = `✓ ${file.name} selected (non-Excel file — summary not parsed)`;
                         }
                         updateYaml();
                     });
@@ -353,7 +345,7 @@
             updateYaml();
         }
 
-        async function parseExcelOrCsv(file) {
+        async function parseExcelOrCsv(file, fieldId = '') {
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -365,17 +357,31 @@
                     }
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet);
-                    let units = json.length;
-                    let totalRent = 0, count = 0;
-                    json.forEach(row => {
-                        const rent = parseFloat(row.Rent || row['Current Rent'] || row['Monthly Rent'] || 0);
-                        if (rent > 0) { totalRent += rent; count++; }
-                    });
-                    resolve({
-                        units: units,
-                        avgRent: count ? Math.round(totalRent / count) : null,
-                        rawRows: json.length
-                    });
+
+                    const isT12 = fieldId.includes('t12') || fieldId.includes('expense');
+
+                    if (isT12) {
+                        resolve({
+                            type: "t12_expense_summary",
+                            rows: json.length,
+                            note: "Expense categories / financial lines detected (typical T-12 format)",
+                            rawRows: json.length
+                        });
+                    } else {
+                        // original rent-roll logic
+                        let units = json.length;
+                        let totalRent = 0, count = 0;
+                        json.forEach(row => {
+                            const rent = parseFloat(row.Rent || row['Current Rent'] || row['Monthly Rent'] || row['Rent Amount'] || 0);
+                            if (rent > 0) { totalRent += rent; count++; }
+                        });
+                        resolve({
+                            type: "rent_roll_summary",
+                            units: units,
+                            avgRent: count ? Math.round(totalRent / count) : null,
+                            rawRows: json.length
+                        });
+                    }
                 };
                 if (file.name.endsWith('.csv')) reader.readAsText(file);
                 else reader.readAsArrayBuffer(file);
@@ -392,7 +398,7 @@
             if (!currentTask) return;
             
             const yamlObj = {
-                version: "1.3",
+                version: "1.4",
                 generated_at: new Date().toISOString(),
                 task: currentTask.id,
                 realai_guidance: getPersonaGuidance(),
@@ -422,7 +428,7 @@
                     "Risks & Mitigants",
                     "Actionable Next Steps"
                 ],
-                additional_context: "Prompt generated via RealPrompt Builder v1.3. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
+                additional_context: "Prompt generated via RealPrompt Builder v1.4. All uploaded files parsed client-side. Use any attached file summaries or pasted data directly."
             };
 
             try {
@@ -482,9 +488,9 @@
 
         // Initial render
         renderTasks(tasks);
-        document.getElementById('yaml-preview').textContent = '# Select a task on the left to generate your institutional-grade RealAI prompt';
+        document.getElementById('yaml-preview').textContent = '# Select a task to generate your institutional-grade RealAI prompt';
 
-        console.log('%c✅ RealPrompt v1.3 FULL – All 12 tasks expanded • Professional workflows • Excel auto-parsing • Ready to use', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.4 – Smart T-12 vs Rent Roll detection • Better summaries • Ready', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
