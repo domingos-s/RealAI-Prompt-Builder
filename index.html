@@ -10,58 +10,132 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&display=swap');
+        :root {
+            --ra-bg: #0b1220;
+            --ra-surface: #141e31;
+            --ra-text: #e7edf8;
+            --ra-muted: #93a1bc;
+            --ra-accent: #f59e0b;
+            --ra-border: #27334a;
+            --ra-focus: rgba(245, 158, 11, 0.34);
+        }
         body { font-family: 'Inter', system-ui, sans-serif; }
         .heading { font-family: 'Space Grotesk', sans-serif; }
-        .task-card { transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .task-card:hover { transform: translateY(-4px); box-shadow: 0 25px 50px -12px rgb(16 185 129 / 0.25); }
-        .task-card.active { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); }
+        .ra-page { background: var(--ra-bg); color: var(--ra-text); }
+        .ra-surface { background: var(--ra-surface); border-color: var(--ra-border); }
+        .ra-muted { color: var(--ra-muted); }
+        .ra-accent { color: var(--ra-accent); }
+        .ra-input {
+            background: color-mix(in srgb, var(--ra-surface) 92%, black);
+            border: 1px solid var(--ra-border);
+            border-radius: 999px;
+            color: var(--ra-text);
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        .ra-input::placeholder { color: color-mix(in srgb, var(--ra-muted) 82%, transparent); }
+        .ra-input:focus {
+            outline: none;
+            border-color: var(--ra-accent);
+            box-shadow: 0 0 0 3px var(--ra-focus);
+        }
+        .ra-input.file-input { border-radius: 22px; }
+        .ra-input.file-input::file-selector-button {
+            border-radius: 999px;
+            border: 0;
+            background: color-mix(in srgb, var(--ra-accent) 18%, transparent);
+            color: var(--ra-accent);
+            padding: 0.45rem 0.95rem;
+            margin-right: 0.75rem;
+        }
+        .task-card {
+            background: color-mix(in srgb, var(--ra-surface) 90%, black);
+            border: 1px solid var(--ra-border);
+            border-radius: 22px;
+            color: var(--ra-text);
+            transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1), border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+            box-shadow: 0 10px 20px -16px rgba(4, 8, 16, 0.7);
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            border-color: color-mix(in srgb, var(--ra-accent) 45%, var(--ra-border));
+            box-shadow: 0 12px 24px -16px rgba(4, 8, 16, 0.75);
+        }
+        .task-card.active {
+            background: color-mix(in srgb, var(--ra-accent) 18%, var(--ra-surface));
+            color: var(--ra-text) !important;
+            border-color: var(--ra-accent) !important;
+            box-shadow: 0 0 0 2px var(--ra-focus);
+        }
+        .ra-primary-btn {
+            background: var(--ra-accent);
+            color: #1a1202;
+            border: 1px solid color-mix(in srgb, var(--ra-accent) 75%, black);
+            border-radius: 999px;
+            box-shadow: 0 8px 18px -14px rgba(245, 158, 11, 0.55);
+            transition: transform .18s ease, filter .18s ease;
+        }
+        .ra-primary-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+        .ra-link-btn {
+            color: var(--ra-muted);
+            border-radius: 999px;
+            transition: color .18s ease, background-color .18s ease;
+        }
+        .ra-link-btn:hover { color: var(--ra-text); background: color-mix(in srgb, var(--ra-accent) 12%, transparent); }
+        .ra-yaml-header {
+            background: linear-gradient(90deg, color-mix(in srgb, var(--ra-accent) 10%, var(--ra-bg)), var(--ra-bg));
+        }
+        .ra-badge {
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--ra-accent) 18%, transparent);
+            color: var(--ra-accent);
+        }
         pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ra-accent) 72%, transparent); border-radius: 3px; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen overflow-hidden">
+<body class="ra-page min-h-screen overflow-hidden">
     <div class="flex flex-col lg:flex-row h-screen">
         <!-- Sidebar -->
-        <div class="w-full lg:w-96 bg-slate-900 border-b lg:border-r border-slate-800 flex flex-col">
-            <div class="p-6 border-b border-slate-800 flex items-center gap-3 bg-gradient-to-r from-emerald-950 to-slate-900">
-                <div class="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner">R</div>
+        <div class="w-full lg:w-96 ra-surface border-b lg:border-r flex flex-col">
+            <div class="p-6 border-b ra-surface flex items-center gap-3 ra-yaml-header">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-3xl font-bold heading shadow-inner" style="background: var(--ra-accent); color: #1a1202;">R</div>
                 <div>
-                    <div class="heading text-3xl font-semibold tracking-tighter text-white">RealPrompt</div>
-                    <div class="text-emerald-400 text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.7</div>
+                    <div class="heading text-3xl font-semibold tracking-tighter">RealPrompt</div>
+                    <div class="ra-accent text-xs font-medium tracking-[2px] uppercase">for RealAI • v1.7</div>
                 </div>
             </div>
             <div class="p-6">
                 <div class="relative">
-                    <input id="search" type="text" placeholder="Search tasks..." class="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-3xl px-5 py-3.5 text-sm placeholder-slate-500 focus:outline-none">
-                    <i class="fas fa-search absolute right-5 top-4 text-slate-500"></i>
+                    <input id="search" type="text" placeholder="Search tasks..." class="w-full ra-input px-5 py-3.5 text-sm">
+                    <i class="fas fa-search absolute right-5 top-4 ra-muted"></i>
                 </div>
             </div>
             <div id="tasks-list" class="flex-1 overflow-auto px-6 space-y-4 pb-8 custom-scroll"></div>
-            <div class="p-6 border-t border-slate-800 text-xs text-slate-500">12 professional tasks • Smart Excel parsing</div>
+            <div class="p-6 border-t ra-surface text-xs ra-muted">12 professional tasks • Smart Excel parsing</div>
         </div>
 
         <!-- Form Area -->
         <div class="flex-1 flex flex-col min-h-0">
-            <div class="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
-                <div id="task-title" class="font-semibold text-lg text-white">Select a task from the left</div>
+            <div class="h-16 ra-surface border-b px-6 flex items-center justify-between flex-shrink-0">
+                <div id="task-title" class="font-semibold text-lg">Select a task from the left</div>
                 <div class="flex items-center gap-4">
-                    <button onclick="resetForm()" class="flex items-center gap-2 px-5 py-2 text-sm text-slate-400 hover:text-white transition-colors"><i class="fas fa-rotate"></i> Clear</button>
-                    <button onclick="copyYaml()" class="bg-emerald-600 hover:bg-emerald-700 transition-all px-6 py-2 rounded-3xl font-medium flex items-center gap-2 shadow-lg shadow-emerald-900/50"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
+                    <button onclick="resetForm()" class="ra-link-btn flex items-center gap-2 px-5 py-2 text-sm"><i class="fas fa-rotate"></i> Clear</button>
+                    <button onclick="copyYaml()" class="ra-primary-btn px-6 py-2 font-medium flex items-center gap-2"><i class="fas fa-copy"></i> Copy YAML Prompt</button>
                 </div>
             </div>
-            <div id="form-area" class="flex-1 overflow-auto p-6 lg:p-10 bg-slate-950">
+            <div id="form-area" class="flex-1 overflow-auto p-6 lg:p-10 ra-page">
                 <div id="form-content" class="max-w-3xl mx-auto"></div>
             </div>
         </div>
 
         <!-- YAML Preview -->
-        <div class="w-full lg:w-5/12 bg-slate-900 border-t lg:border-l border-slate-800 flex flex-col min-h-0">
-            <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-shrink-0">
-                <div class="flex items-center gap-3 text-emerald-400"><i class="fas fa-file-code text-xl"></i><span class="font-medium tracking-tight">RealAI Prompt (YAML)</span></div>
-                <button onclick="downloadYaml()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-2 text-sm"><i class="fas fa-download"></i> Download .yaml</button>
+        <div class="w-full lg:w-5/12 ra-surface border-t lg:border-l flex flex-col min-h-0">
+            <div class="px-6 py-5 border-b ra-surface flex items-center justify-between ra-yaml-header flex-shrink-0">
+                <div class="flex items-center gap-3 ra-accent"><i class="fas fa-file-code text-xl"></i><span class="font-medium tracking-tight">RealAI Prompt (YAML)</span></div>
+                <button onclick="downloadYaml()" class="ra-link-btn ra-accent flex items-center gap-2 text-sm px-4 py-1.5"><i class="fas fa-download"></i> Download .yaml</button>
             </div>
-            <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-emerald-200/90 text-[13px] leading-relaxed bg-slate-950 font-mono whitespace-pre-wrap border-t border-slate-800 custom-scroll"></pre>
+            <pre id="yaml-preview" class="flex-1 p-6 overflow-auto text-[13px] leading-relaxed font-mono whitespace-pre-wrap border-t custom-scroll" style="color: color-mix(in srgb, var(--ra-accent) 28%, var(--ra-text)); background: var(--ra-bg); border-color: var(--ra-border);"></pre>
         </div>
     </div>
 
@@ -263,14 +337,14 @@
             container.innerHTML = '';
             filtered.forEach(task => {
                 const el = document.createElement('div');
-                el.className = `task-card bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500 rounded-3xl p-6 cursor-pointer`;
+                el.className = `task-card p-6 cursor-pointer`;
                 el.dataset.id = task.id;
                 el.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div>
-                            <span class="inline-block px-3 py-1 text-[10px] font-medium tracking-widest rounded-2xl bg-emerald-950 text-emerald-400">${task.category}</span>
+                            <span class="inline-block px-3 py-1 text-[10px] font-medium tracking-widest ra-badge">${task.category}</span>
                             <div class="mt-3 font-semibold leading-tight text-lg">${task.name}</div>
-                            <div class="text-slate-400 text-sm mt-2 line-clamp-2">${task.description}</div>
+                            <div class="ra-muted text-sm mt-2 line-clamp-2">${task.description}</div>
                         </div>
                     </div>
                 `;
@@ -293,18 +367,18 @@
             task.fields.forEach(field => {
                 html += `
                     <div>
-                        <label class="block text-slate-300 text-sm font-medium mb-2">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
+                        <label class="block text-sm font-medium mb-2" style="color: var(--ra-text);">${field.label}${field.required ? ' <span class="text-red-400">*</span>' : ''}</label>
                 `;
                 if (field.type === "file") {
                     html += `
                         <input id="field-${field.id}" type="file" accept="${field.accept}" 
-                               class="w-full bg-slate-900 border border-slate-700 rounded-3xl px-6 py-4 focus:outline-none focus:border-emerald-500 text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-medium file:bg-emerald-950 file:text-emerald-400">
-                        <div id="file-status-${field.id}" class="text-xs text-emerald-400 mt-1.5"></div>
+                               class="w-full ra-input file-input px-6 py-4 text-sm ra-muted">
+                        <div id="file-status-${field.id}" class="text-xs ra-accent mt-1.5"></div>
                     `;
                 } else if (field.type === "textarea") {
-                    html += `<textarea id="field-${field.id}" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-3xl px-6 py-4 focus:outline-none focus:border-emerald-500 resize-y min-h-[100px]" placeholder="${field.placeholder || ''}"></textarea>`;
+                    html += `<textarea id="field-${field.id}" rows="3" class="w-full ra-input resize-y min-h-[100px] px-6 py-4" style="border-radius: 22px;" placeholder="${field.placeholder || ''}"></textarea>`;
                 } else {
-                    html += `<input id="field-${field.id}" type="${field.type}" class="w-full bg-slate-900 border border-slate-700 rounded-3xl px-6 py-4 focus:outline-none focus:border-emerald-500" placeholder="${field.placeholder || ''}">`;
+                    html += `<input id="field-${field.id}" type="${field.type}" class="w-full ra-input px-6 py-4" placeholder="${field.placeholder || ''}">`;
                 }
                 html += `</div>`;
             });
