@@ -377,12 +377,12 @@
                             let expenses = {};
                             let rows = json.length;
                             let header = json[0] || [];
-                            let totalIndex = header.findIndex(col => col && col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual'));
+                            let totalIndex = header.findIndex(col => col && typeof col === 'string' && (col.toLowerCase().includes('total') || col.toLowerCase().includes('ytd') || col.toLowerCase().includes('annual')));
                             let hasTotal = totalIndex >= 0;
 
                             for (let i = 1; i < json.length; i++) {
                                 let row = json[i];
-                                let category = row[0] ? row[0].toString().trim().toLowerCase() : null;
+                                let category = row[0] && typeof row[0] === 'string' ? row[0].trim().toLowerCase() : null;
                                 if (!category || category === '' || category.includes('total')) continue; // skip empty or totals
 
                                 let amount;
@@ -409,7 +409,7 @@
                             let totalRent = 0, count = 0;
                             for (let i = 1; i < json.length; i++) {
                                 const row = json[i];
-                                const rentIndex = row.findIndex(cell => typeof cell === 'string' && cell.toLowerCase().includes('rent'));
+                                const rentIndex = row.findIndex(cell => cell && typeof cell === 'string' && cell.toLowerCase().includes('rent'));
                                 const rent = rentIndex >= 0 ? parseFloat(row[rentIndex + 1] || row[rentIndex] || 0) : 0;
                                 if (rent > 0) { totalRent += rent; count++; }
                             }
@@ -532,7 +532,7 @@
         renderTasks(tasks);
         document.getElementById('yaml-preview').textContent = '# Select a task to generate your institutional-grade RealAI prompt';
 
-        console.log('%c✅ RealPrompt v1.7 – Added error handling for parsing • Status updates on fail • Ready', 'color:#10b981; font-weight:600');
+        console.log('%c✅ RealPrompt v1.7 – Fixed null/undefined header checks • Safer parsing • Ready', 'color:#10b981; font-weight:600');
     </script>
 </body>
 </html>
